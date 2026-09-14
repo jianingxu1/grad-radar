@@ -50,6 +50,20 @@ describe("App", () => {
     expect(applicationLink).toHaveAttribute("rel", "noreferrer");
   });
 
+  it("shows the FAQ at its own URL without loading the job feed", () => {
+    window.history.replaceState({}, "", "/faq");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: "How GradRadar works" })).toBeVisible();
+    expect(
+      screen.getByText(/every 15 minutes from 7:00 AM through 8:45 PM Pacific/i),
+    ).toBeVisible();
+    expect(screen.getByText(/visa or sponsorship assessment/i)).toBeVisible();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("renders source-supplied HTML in company names as plain text", async () => {
     vi.stubGlobal(
       "fetch",
