@@ -48,16 +48,22 @@ def get_parser(name: SourceName) -> SourceParser:
 
 def _parse_speedyapply(text: str, revision_at: datetime) -> ParseResult:
     heading = "2027 USA SWE New Graduate Positions"
-    if heading not in text:
-        raise ValueError("missing SpeedyApply new-grad heading")
     result = ParseResult([])
     active = False
+    in_target_section = False
+    found_target_section = False
     headers: dict[str, int] | None = None
     for line in text.splitlines():
-        if line.startswith("##") and heading not in line:
+        if line.startswith("## "):
+            in_target_section = heading in line
+            found_target_section = found_target_section or in_target_section
             active = False
-        if line.strip().lower().startswith("###") and any(
-            x in line for x in ("FAANG+", "Quant", "Other")
+            headers = None
+            continue
+        if (
+            in_target_section
+            and line.strip().lower().startswith("###")
+            and any(x in line for x in ("FAANG+", "Quant", "Other"))
         ):
             active = True
             headers = None
@@ -87,6 +93,8 @@ def _parse_speedyapply(text: str, revision_at: datetime) -> ParseResult:
             revision_at,
             _first_url(posting_cell),
         )
+    if not found_target_section:
+        raise ValueError("missing SpeedyApply new-grad heading")
     return result
 
 
@@ -172,5 +180,5 @@ def _append(
 def _first_url(value: str) -> str | None:
     import re
 
-    match = re.search(r"https?://[^ )]+", value)
+    match = re.search(r'https?://[^\s)"<>\]]+', value)
     return match.group(0) if match else None

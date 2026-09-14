@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
@@ -7,18 +8,15 @@ from app.sources.parsing import SimplifyParser, SpeedyApplyParser, get_parser
 
 
 def test_speedyapply_parser_maps_headers_and_posting_link() -> None:
-    text = "\n".join(
-        [
-            "# 2027 USA SWE New Graduate Positions",
-            "### FAANG+",
-            "| Company | Position | Location | Posting | Age |",
-            "| --- | --- | --- | --- | --- |",
-            "| Acme | SWE | Seattle, WA | [Apply](https://jobs.example.com/1) | 3d |",
-        ]
-    )
-    result = SpeedyApplyParser().parse(text, datetime(2026, 1, 3, tzinfo=UTC))
-    assert result.postings[0].location == "Seattle, WA"
-    assert result.postings[0].apply_url == "https://jobs.example.com/1"
+    fixture = Path(__file__).parents[1] / "fixtures" / "speedyapply_new_grad.md"
+    result = SpeedyApplyParser().parse(fixture.read_text(), datetime(2026, 1, 3, tzinfo=UTC))
+
+    assert [posting.company_name for posting in result.postings] == [
+        "Amazon",
+        "Jane Street",
+        "Replit",
+    ]
+    assert [posting.source_name for posting in result.postings] == [SourceName.SPEEDYAPPLY] * 3
 
 
 def test_simplify_parser_selects_apply_link_and_us_row() -> None:
