@@ -1,4 +1,4 @@
-from gradradar.source_config import SOURCES
+from gradradar.sources.definitions import SOURCES
 
 
 def test_source_definitions_have_unique_names() -> None:

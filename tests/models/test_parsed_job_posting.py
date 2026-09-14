@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
-from gradradar.contracts import ParsedJobPosting
+from gradradar.models.parsed_job_posting import ParsedJobPosting
 
 
 def test_parsed_posting_accepts_shared_contract() -> None:

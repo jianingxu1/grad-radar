@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from gradradar.settings import Settings
+from gradradar.config.settings import Settings
 
 
 def test_settings_requires_database_url() -> None:

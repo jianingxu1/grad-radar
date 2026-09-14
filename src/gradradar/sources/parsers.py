@@ -3,9 +3,9 @@ from datetime import datetime
 
 from bs4 import BeautifulSoup
 
-from gradradar.contracts import ParsedJobPosting
-from gradradar.eligibility import LocationEligibility, classify_us_location
-from gradradar.normalization import normalize_apply_url, parse_tracker_age
+from gradradar.domain.application_identity import normalize_apply_url, parse_tracker_age
+from gradradar.domain.location_eligibility import LocationEligibility, classify_us_location
+from gradradar.models.parsed_job_posting import ParsedJobPosting
 
 
 @dataclass

@@ -1,8 +1,8 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from gradradar.models import Source
-from gradradar.source_config import SOURCES
+from gradradar.database.models import Source
+from gradradar.sources.definitions import SOURCES
 
 
 def bootstrap_sources(session: Session) -> int:

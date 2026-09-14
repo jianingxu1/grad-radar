@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from gradradar.settings import Settings
+from gradradar.config.settings import Settings
 
 
 def create_session_factory(settings: Settings) -> sessionmaker[Session]:

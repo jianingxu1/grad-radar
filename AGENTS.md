@@ -3,6 +3,7 @@
 ## Project structure
 
 - `docs/` — product design and phased roadmap.
+- `src/gradradar/` — backend package; database models and source ingestion.
 
 Document every new top-level project folder in this section.
 
