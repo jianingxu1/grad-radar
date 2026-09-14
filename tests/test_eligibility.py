@@ -10,6 +10,8 @@ from gradradar.eligibility import LocationEligibility, classify_us_location
         ("Toronto, Canada", LocationEligibility.INELIGIBLE),
         ("Remote", LocationEligibility.UNKNOWN),
         ("Toronto, Canada; SF, USA", LocationEligibility.ELIGIBLE),
+        ("Poland", LocationEligibility.UNKNOWN),
+        ("Austin, TX", LocationEligibility.ELIGIBLE),
     ],
 )
 def test_location_classification(location: str, expected: LocationEligibility) -> None:

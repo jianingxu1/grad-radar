@@ -22,11 +22,14 @@ class ParsedJobPosting(BaseModel):
     @field_validator("apply_url")
     @classmethod
     def require_http_url(cls, value: str) -> str:
-        return str(HttpUrl(value))
+        HttpUrl(value)
+        return value
 
     @field_validator("listed_at")
     @classmethod
     def require_utc(cls, value: datetime | None) -> datetime | None:
-        if value is not None and (value.tzinfo is None or value.astimezone(UTC) != value):
+        if value is not None and (
+            value.tzinfo is None or value.utcoffset() != UTC.utcoffset(value)
+        ):
             raise ValueError("listed_at must be UTC")
         return value

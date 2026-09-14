@@ -1,6 +1,21 @@
 from datetime import UTC, datetime
 
-from gradradar.parsers import parse_simplify
+from gradradar.parsers import parse_simplify, parse_speedyapply
+
+
+def test_speedyapply_parser_maps_headers_and_posting_link() -> None:
+    text = "\n".join(
+        [
+            "# 2027 USA SWE New Graduate Positions",
+            "### FAANG+",
+            "| Company | Position | Location | Posting | Age |",
+            "| --- | --- | --- | --- | --- |",
+            "| Acme | SWE | Seattle, WA | [Apply](https://jobs.example.com/1) | 3d |",
+        ]
+    )
+    result = parse_speedyapply(text, datetime(2026, 1, 3, tzinfo=UTC))
+    assert result.postings[0].location == "Seattle, WA"
+    assert result.postings[0].apply_url == "https://jobs.example.com/1"
 
 
 def test_simplify_parser_selects_apply_link_and_us_row() -> None:

@@ -23,6 +23,7 @@ def parse_speedyapply(text: str, revision_at: datetime) -> ParseResult:
         raise ValueError("missing SpeedyApply new-grad heading")
     result = ParseResult([])
     active = False
+    headers: dict[str, int] | None = None
     for line in text.splitlines():
         if line.startswith("##") and heading not in line:
             active = False
@@ -30,13 +31,33 @@ def parse_speedyapply(text: str, revision_at: datetime) -> ParseResult:
             x in line for x in ("FAANG+", "Quant", "Other")
         ):
             active = True
-        if not active or not line.startswith("|") or "---" in line:
+            headers = None
+        if not active or not line.startswith("|"):
             continue
         cells = [cell.strip() for cell in line.strip("|").split("|")]
-        if len(cells) < 4 or cells[0].lower() == "company":
+        if all(set(cell) <= {"-", ":"} for cell in cells):
+            continue
+        if headers is None:
+            headers = {header.lower(): index for index, header in enumerate(cells)}
+            required = {"company", "position", "location", "posting", "age"}
+            if not required <= headers.keys():
+                raise ValueError("missing SpeedyApply table columns")
+            continue
+        if len(cells) < len(headers):
+            result.malformed += 1
             continue
         result.parsed += 1
-        _append(result, "speedyapply", cells[0], cells[1], cells[-2], cells[-1], revision_at)
+        posting_cell = cells[headers["posting"]]
+        _append(
+            result,
+            "speedyapply",
+            cells[headers["company"]],
+            cells[headers["position"]],
+            cells[headers["location"]],
+            cells[headers["age"]],
+            revision_at,
+            _first_url(posting_cell),
+        )
     return result
 
 
