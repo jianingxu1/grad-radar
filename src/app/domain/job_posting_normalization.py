@@ -19,8 +19,9 @@ def normalize_apply_url(raw_url: str) -> str:
     if ashby_key is not None:
         return ashby_key
 
-    if "microsoft.com" in parsed.netloc and query.get("pid"):
-        return f"microsoft-job-id:{query['pid']}"
+    microsoft_key = _microsoft_key(parsed.netloc, query)
+    if microsoft_key is not None:
+        return microsoft_key
 
     host = parsed.netloc.removeprefix("www.")
     if host.endswith("greenhouse.io"):
@@ -48,6 +49,12 @@ def _ashby_key(host: str, path: str) -> str | None:
     match = re.search(r"ashbyhq\.com/([^/]+)/([^/?#]+)", f"{host}{path}")
     if match:
         return f"ashby-job-id:{match.group(1)}:{match.group(2)}"
+    return None
+
+
+def _microsoft_key(host: str, query: dict[str, str]) -> str | None:
+    if "microsoft.com" in host and query.get("pid"):
+        return f"microsoft-job-id:{query['pid']}"
     return None
 
 
