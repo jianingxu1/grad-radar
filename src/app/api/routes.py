@@ -4,11 +4,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import Select, or_, select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import Select, exists, or_, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.api.schemas import JobPageResponse, JobResponse, SourceResponse
+from app.api.schemas import HealthResponse, JobPageResponse, JobResponse, SourceResponse
 from app.database.models import JobPosting, JobPostingSource, Source
 from app.database.session import get_session_factory
 
@@ -20,6 +20,14 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         factory = get_session_factory() if session_factory is None else session_factory
         with factory() as session:
             yield session
+
+    @router.get("/health", response_model=HealthResponse)
+    def health(session: Annotated[Session, Depends(get_session)]) -> HealthResponse:
+        try:
+            session.execute(text("select 1"))
+        except Exception as error:
+            raise HTTPException(status_code=503, detail="database unavailable") from error
+        return HealthResponse(status="ok")
 
     @router.get("/v1/jobs", response_model=JobPageResponse)
     def list_jobs(
@@ -33,7 +41,15 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         limit: Annotated[int, Query(ge=1, le=100)] = 50,
         session: Annotated[Session, Depends(get_session)],
     ) -> JobPageResponse:
-        statement: Select[tuple[JobPosting]] = select(JobPosting)
+        current_source_link = (
+            select(JobPostingSource.job_posting_id)
+            .join(Source, JobPostingSource.source_id == Source.id)
+            .where(
+                JobPostingSource.job_posting_id == JobPosting.id,
+                JobPostingSource.last_seen_at == Source.last_successful_sync_at,
+            )
+        )
+        statement: Select[tuple[JobPosting]] = select(JobPosting).where(exists(current_source_link))
         if q:
             pattern = f"%{q.strip()}%"
             statement = statement.where(

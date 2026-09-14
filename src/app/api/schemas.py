@@ -9,6 +9,10 @@ class SourceResponse(BaseModel):
     url: str
 
 
+class HealthResponse(BaseModel):
+    status: str
+
+
 class JobResponse(BaseModel):
     id: UUID
     company_name: str

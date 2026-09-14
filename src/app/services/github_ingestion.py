@@ -104,11 +104,12 @@ def ingest_source(
         )
         with session_factory.begin() as session:
             source = session.query(Source).filter_by(name=definition.name).one()
+            synced_at = datetime.now(UTC)
             for posting in parsed.postings:
-                persist_posting(session, posting, datetime.now(UTC))
+                persist_posting(session, posting, synced_at)
             source.last_processed_revision_sha, source.last_successful_sync_at = (
                 sha,
-                datetime.now(UTC),
+                synced_at,
             )
         duration_ms = _duration_ms(started_at)
         summary = IngestionSummary(

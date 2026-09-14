@@ -1,9 +1,10 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
-from sqlalchemy import event
+from sqlalchemy import event, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.database.models import JobPostingSource, Source
 from app.main import create_app
 from app.models.parsed_job_posting import ParsedJobPosting
 from app.repositories.job_postings import persist_posting
@@ -27,6 +28,16 @@ def _posting(
         location=location,
         listed_at=listed_at,
     )
+
+
+def _mark_source_current(session: Session, source_name: SourceName, synced_at: datetime) -> None:
+    source = session.scalar(select(Source).where(Source.name == source_name))
+    assert source is not None
+    source.last_successful_sync_at = synced_at
+    for link in session.scalars(
+        select(JobPostingSource).where(JobPostingSource.source_id == source.id)
+    ):
+        link.last_seen_at = synced_at
 
 
 def test_jobs_api_filters_paginates_and_returns_listing_attributes(
@@ -63,6 +74,7 @@ def test_jobs_api_filters_paginates_and_returns_listing_attributes(
             ),
             now - timedelta(hours=2),
         )
+        _mark_source_current(session, SourceName.SIMPLIFY, now)
 
     client = TestClient(create_app(session_factory))
     response = client.get("/v1/jobs", params={"q": "stripe", "remote": "true", "limit": 1})
@@ -116,6 +128,39 @@ def test_jobs_api_filters_paginates_and_returns_listing_attributes(
     ]
 
 
+def test_jobs_api_excludes_jobs_absent_from_all_sources(
+    session_factory: sessionmaker[Session],
+) -> None:
+    now = datetime.now(UTC)
+    with session_factory.begin() as session:
+        bootstrap_sources(session)
+        current = persist_posting(
+            session,
+            _posting("https://jobs.example.com/current", "Current", "Boston, MA", now),
+            now,
+        )
+        persist_posting(
+            session,
+            _posting("https://jobs.example.com/absent", "Absent", "Boston, MA", now),
+            now - timedelta(days=1),
+        )
+        source = session.scalar(select(Source).where(Source.name == SourceName.SIMPLIFY))
+        assert source is not None
+        source.last_successful_sync_at = now
+
+    response = TestClient(create_app(session_factory)).get("/v1/jobs")
+
+    assert response.status_code == 200
+    assert [job["id"] for job in response.json()["items"]] == [str(current.id)]
+
+
+def test_health_endpoint(session_factory: sessionmaker[Session]) -> None:
+    response = TestClient(create_app(session_factory)).get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
 def test_jobs_api_loads_provenance_in_one_batched_query(
     session_factory: sessionmaker[Session],
 ) -> None:
@@ -127,6 +172,8 @@ def test_jobs_api_loads_provenance_in_one_batched_query(
             _posting("https://jobs.example.com/1", "Stripe", "Remote, USA", now),
             now,
         )
+        _mark_source_current(session, SourceName.SIMPLIFY, now)
+        _mark_source_current(session, SourceName.SPEEDYAPPLY, now)
         persist_posting(
             session,
             ParsedJobPosting(
