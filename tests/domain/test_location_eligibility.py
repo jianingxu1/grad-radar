@@ -11,6 +11,7 @@ from app.domain.location_eligibility import LocationEligibility, classify_us_loc
         ("Remote in Canada", LocationEligibility.INELIGIBLE),
         ("Remote", LocationEligibility.UNKNOWN),
         ("US Remote", LocationEligibility.ELIGIBLE),
+        ("Remote — United States", LocationEligibility.ELIGIBLE),
         ("Toronto, Canada; SF, USA", LocationEligibility.ELIGIBLE),
         ("Poland", LocationEligibility.INELIGIBLE),
         ("Austin, TX", LocationEligibility.ELIGIBLE),

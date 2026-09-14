@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.116.0",
     "@vitejs/plugin-react": "latest",
     "react": "latest",
     "react-dom": "latest",

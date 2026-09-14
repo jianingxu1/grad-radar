@@ -38,6 +38,8 @@ architecture; this file tracks delivery progress.
 - [x] Add URL-backed filters, loading/empty/error states, and accessibility
   basics.
 - [x] Show clear freshness and source-supplied-link labels.
+- [x] Add optional Google-only Supabase sign-in; retain the browser session for
+  future subscriptions.
 - [ ] Deploy the API, scheduled ingestion worker, PostgreSQL database, and
   static frontend with health monitoring.
 

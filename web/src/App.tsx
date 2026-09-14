@@ -1,7 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { User } from "@supabase/supabase-js";
 
 import { fetchJobs, PAGE_SIZE, type JobFilters, type JobPage, type SourceName } from "./api";
 import { defaultFilters, filtersFromSearch, filtersToSearch } from "./filterState";
+import { supabase } from "./supabase";
 
 const sourceLabels: Record<SourceName, string> = {
   simplify: "Simplify",
@@ -55,6 +57,68 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+  const [user, setUser] = useState<User | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    void supabase.auth.getUser().then(({ data, error: sessionError }) => {
+      if (sessionError) {
+        setAuthError(sessionError.message);
+        return;
+      }
+      setUser(data.user);
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!supabase || !googleClientId || !googleButtonRef.current) return;
+    const authClient = supabase;
+
+    let cancelled = false;
+    async function renderGoogleButton(): Promise<void> {
+      if (!window.google || cancelled || !googleButtonRef.current) return;
+      const nonce = await createNonce();
+      if (cancelled || !googleButtonRef.current) return;
+
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        nonce: nonce.hashed,
+        callback: (response) => {
+          void authClient.auth
+            .signInWithIdToken({ provider: "google", token: response.credential, nonce: nonce.raw })
+            .then(({ error: signInError }) => {
+              if (signInError) setAuthError(signInError.message);
+            });
+        },
+      });
+      googleButtonRef.current.replaceChildren();
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "rectangular",
+        width: 220,
+      });
+    }
+
+    void renderGoogleButton();
+    const script = document.querySelector<HTMLScriptElement>(
+      'script[src="https://accounts.google.com/gsi/client"]',
+    );
+    script?.addEventListener("load", renderGoogleButton);
+    return () => {
+      cancelled = true;
+      script?.removeEventListener("load", renderGoogleButton);
+    };
+  }, []);
 
   useEffect(() => {
     if (path === "/faq") return;
@@ -134,6 +198,12 @@ export function App() {
     changeFilters({ sortBy, sortDirection });
   }
 
+  async function signOut(): Promise<void> {
+    if (!supabase) return;
+    const { error: signOutError } = await supabase.auth.signOut();
+    if (signOutError) setAuthError(signOutError.message);
+  }
+
   if (path === "/faq") {
     return <FaqPage onNavigate={navigate} />;
   }
@@ -144,7 +214,7 @@ export function App() {
   return (
     <main className="flex min-h-screen flex-col bg-white text-slate-950">
       <div className="mx-auto w-full max-w-[1800px] flex-1 px-5 py-5 sm:px-8">
-        <header className="mb-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-slate-200 pb-4">
+        <header className="mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-slate-200 pb-4">
           <div className="flex items-baseline gap-3">
             <h1 className="text-xl font-semibold tracking-tight">GradRadar</h1>
             <p className="text-sm text-slate-500">U.S. entry-level software engineering jobs</p>
@@ -156,8 +226,27 @@ export function App() {
             <button className="button-secondary" onClick={() => navigate("/faq")}>
               FAQ
             </button>
+            {user ? (
+              <div className="flex items-center gap-2">
+                <span className="max-w-48 truncate text-sm text-slate-600" title={user.email}>
+                  {user.email}
+                </span>
+                <button className="button-secondary" onClick={() => void signOut()}>
+                  Sign out
+                </button>
+              </div>
+            ) : import.meta.env.VITE_GOOGLE_CLIENT_ID && supabase ? (
+              <div aria-label="Sign in with Google" ref={googleButtonRef} />
+            ) : (
+              <span className="text-sm text-slate-500">Google sign-in is not configured</span>
+            )}
           </div>
         </header>
+        {authError && (
+          <p className="mb-3 text-sm text-red-700" role="alert">
+            {authError}
+          </p>
+        )}
 
         <section aria-label="Feed filters" className="mb-3 border-b border-slate-200 pb-3">
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1.4fr_1fr_0.8fr_0.8fr_1.2fr]">
@@ -347,6 +436,15 @@ export function App() {
       </footer>
     </main>
   );
+}
+
+async function createNonce(): Promise<{ hashed: string; raw: string }> {
+  const raw = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+  const hashed = Array.from(new Uint8Array(hash))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return { raw, hashed };
 }
 
 function FaqPage({ onNavigate }: { onNavigate: (path: "/") => void }) {

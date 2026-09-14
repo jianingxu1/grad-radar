@@ -10,10 +10,11 @@ estimated listing time, first-seen time, and tracker source.
 The target audience is full-time SWE new-grad roles for 2026 or 2027
 bachelor's/master's graduates. Exclude PhD-specific roles.
 
-The implemented backend is a public, read-only API with no user accounts. It
-ingests only two GitHub repositories; the React website is the next phase. It
-does not verify employer listings, create accounts, track applications, scrape
-LinkedIn, submit applications, or send individual alerts.
+The implemented backend is a public, read-only API. The React website supports
+optional Google sign-in through Supabase Auth, but accounts do not affect the
+public feed yet. It ingests only two GitHub repositories and does not verify
+employer listings, track applications, scrape LinkedIn, submit applications,
+or send individual alerts.
 
 ### Product decisions
 
@@ -23,7 +24,8 @@ LinkedIn, submit applications, or send individual alerts.
 | Source repos | SpeedyApply USA file and Simplify SWE table | Both have a maintained job table and direct apply links. |
 | Storage | PostgreSQL | Durable dedupe, history, filtering, and subscriptions. |
 | API | FastAPI | Matches the Python ingestion service and provides typed OpenAPI docs. |
-| Web UI | React + TypeScript, planned | Responsive, filterable public feed. |
+| Web UI | React + TypeScript | Responsive, filterable public feed. |
+| Authentication | Supabase Auth with Google only | Establish an account before subscriptions are added. |
 | First alert channel, after MVP | Telegram bot | Free, supports opt-in user chats, and is simple to ship. |
 | Later alert channel | Discord bot, then email | Discord webhooks are ideal for a shared channel; per-user delivery needs a bot. |
 | Do not support in MVP | Alerts, WhatsApp, and iMessage | Prove the feed before introducing notification complexity. |
@@ -43,7 +45,7 @@ flowchart LR
   N --> D[Deduplicate]
   D --> S[(PostgreSQL)]
   S --> A[FastAPI]
-  A --> W[React website (planned)]
+  A --> W[React website]
 ```
 
 Each GitHub parser reads only a changed source revision, extracts its selected
@@ -127,7 +129,8 @@ is an active official posting.
 
 The product target is intentionally narrow:
 
-1. **US scope:** include US cities, `United States`, and US-eligible remote;
+1. **US scope:** include US cities, `United States`, and remote roles open to
+   applicants in the United States;
    exclude explicitly non-US-only roles.
 2. **Engineering family:** ingest only the SpeedyApply new-grad USA file and
    Simplify's Software Engineering section; do not add our own role-title
@@ -168,7 +171,12 @@ estimated listing time, GradRadar first-seen time, source, and an **Open
 application link** button. Preserve query filters in the URL so a filtered feed
 can be shared.
 
-## 7. Notifications after the web MVP
+## 7. Authentication and notifications after the web MVP
+
+The website has a Google-only Supabase Auth entry point. A browser session is
+kept by Supabase after a successful sign-in. It does not create application
+profiles or grant access to private data yet; subscriptions will attach to the
+authenticated user in a later phase.
 
 This is deliberately out of scope until the feed works. Telegram is the first
 implementation. A user opens the bot, sends `/start`,

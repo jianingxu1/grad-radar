@@ -48,6 +48,7 @@ describe("App", () => {
     const applicationLink = screen.getByRole("link", { name: /Open application link for Figma/ });
     expect(applicationLink).toHaveAttribute("target", "_blank");
     expect(applicationLink).toHaveAttribute("rel", "noreferrer");
+    expect(screen.getByText("Google sign-in is not configured")).toBeVisible();
   });
 
   it("shows the FAQ at its own URL without loading the job feed", () => {
@@ -62,6 +63,14 @@ describe("App", () => {
     ).toBeVisible();
     expect(screen.getByText(/visa or sponsorship assessment/i)).toBeVisible();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("explains when sign-in has not been configured", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    render(<App />);
+
+    await screen.findByText("Platform Engineer, New Grad");
+    expect(screen.getByText("Google sign-in is not configured")).toBeVisible();
   });
 
   it("renders source-supplied HTML in company names as plain text", async () => {

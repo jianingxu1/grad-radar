@@ -112,3 +112,21 @@ The website runs at `http://localhost:5173` and fetches the API at
 and set `VITE_API_BASE_URL` for another public API URL. To validate the
 frontend, run `npm --prefix web run lint`, `npm --prefix web run format:check`,
 `npm --prefix web run test`, and `npm --prefix web run build`.
+
+## Configure Google sign-in
+
+The feed works without authentication. To enable the top-right Google sign-in
+button, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in
+`web/.env.local`. The publishable key is safe for the browser; never put a
+Supabase service-role key in a Vite environment file.
+
+In the Supabase dashboard, enable Google under **Authentication → Providers**
+and add the Google OAuth client ID and secret. In Google Cloud, add the
+Supabase callback URL shown by that provider page, and add the local and
+production frontend origins as authorized JavaScript origins. Add those same
+frontend URLs to Supabase's redirect allow list.
+
+For local Supabase, set `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET` in the
+root `.env`, set the Google client ID in `supabase/config.toml`, and change
+`auth.external.google.enabled` to `true`. Restart `supabase` afterward. The
+local callback URL is `http://127.0.0.1:54321/auth/v1/callback`.
