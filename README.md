@@ -116,9 +116,10 @@ frontend, run `npm --prefix web run lint`, `npm --prefix web run format:check`,
 ## Configure Google sign-in
 
 The feed works without authentication. To enable the top-right Google sign-in
-button, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in
-`web/.env.local`. The publishable key is safe for the browser; never put a
-Supabase service-role key in a Vite environment file.
+button, set `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and
+`VITE_GOOGLE_CLIENT_ID` in `web/.env.local`. Use the Google web client ID; the
+publishable key is safe for the browser, but never put a Supabase service-role
+key in a Vite environment file.
 
 In the Supabase dashboard, enable Google under **Authentication → Providers**
 and add the Google OAuth client ID and secret. In Google Cloud, add the
