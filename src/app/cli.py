@@ -1,9 +1,9 @@
 import argparse
 
-from gradradar.config.settings import get_settings
-from gradradar.database.session import create_session_factory, transaction
-from gradradar.services.github_ingestion import ingest_all
-from gradradar.sources.bootstrap import bootstrap_sources
+from app.config.settings import get_settings
+from app.database.session import create_session_factory, transaction
+from app.services.github_ingestion import ingest_all
+from app.sources.bootstrap import bootstrap_sources
 
 
 def main() -> None:

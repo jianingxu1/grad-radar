@@ -3,9 +3,9 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from gradradar.database.models import JobPosting, JobPostingSource, Source
-from gradradar.models.parsed_job_posting import ParsedJobPosting
-from gradradar.sources.definitions import SOURCES
+from app.database.models import JobPosting, JobPostingSource, Source
+from app.models.parsed_job_posting import ParsedJobPosting
+from app.sources.definitions import SOURCES
 
 
 def persist_posting(session: Session, posting: ParsedJobPosting, seen_at: datetime) -> JobPosting:

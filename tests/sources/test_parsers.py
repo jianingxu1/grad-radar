@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from gradradar.sources.parsers import parse_simplify, parse_speedyapply
+from app.sources.parsers import parse_simplify, parse_speedyapply
 
 
 def test_speedyapply_parser_maps_headers_and_posting_link() -> None:

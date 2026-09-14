@@ -137,7 +137,7 @@ or parse GitHub content yet.
 
 ### Package and configuration layout
 
-Create a `src/gradradar/` package:
+Create a `src/app/` package:
 
 - `settings.py`: Pydantic settings for `DATABASE_URL` and optional
   `GITHUB_TOKEN`.

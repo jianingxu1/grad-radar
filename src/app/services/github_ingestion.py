@@ -7,11 +7,11 @@ import httpx
 from sqlalchemy.orm import Session, sessionmaker
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_random_exponential
 
-from gradradar.database.models import JobPostingSource, Source
-from gradradar.repositories.job_postings import persist_posting
-from gradradar.sources.bootstrap import bootstrap_sources
-from gradradar.sources.definitions import SOURCES, SourceDefinition
-from gradradar.sources.parsers import ParseResult, parse_simplify, parse_speedyapply
+from app.database.models import JobPostingSource, Source
+from app.repositories.job_postings import persist_posting
+from app.sources.bootstrap import bootstrap_sources
+from app.sources.definitions import SOURCES, SourceDefinition
+from app.sources.parsers import ParseResult, parse_simplify, parse_speedyapply
 
 logger = logging.getLogger(__name__)
 

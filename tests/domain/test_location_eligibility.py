@@ -1,6 +1,6 @@
 import pytest
 
-from gradradar.domain.location_eligibility import LocationEligibility, classify_us_location
+from app.domain.location_eligibility import LocationEligibility, classify_us_location
 
 
 @pytest.mark.parametrize(

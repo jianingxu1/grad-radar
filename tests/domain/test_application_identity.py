@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from gradradar.domain.application_identity import normalize_apply_url, parse_tracker_age
+from app.domain.application_identity import normalize_apply_url, parse_tracker_age
 
 
 @pytest.mark.parametrize(
