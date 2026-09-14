@@ -72,10 +72,13 @@ class TelegramClient:
         except ValueError:
             return TelegramDelivery(False, error=f"Telegram returned HTTP {response.status_code}")
 
+        if not isinstance(payload, dict):
+            return TelegramDelivery(False, error="Telegram returned an invalid response")
+
         if response.is_success and payload.get("ok") is True:
             result = payload.get("result", {})
-            message_id = result.get("message_id")
-            if isinstance(message_id, int):
+            message_id = result.get("message_id") if isinstance(result, dict) else None
+            if type(message_id) is int:
                 return TelegramDelivery(True, message_id=message_id)
             return TelegramDelivery(True)
 

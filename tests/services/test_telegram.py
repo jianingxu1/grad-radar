@@ -55,6 +55,36 @@ def test_send_message_returns_telegram_errors() -> None:
         )
 
 
+def test_send_message_reports_a_network_failure() -> None:
+    with respx.mock:
+        respx.post("https://api.telegram.org/bottest-token/sendMessage").mock(
+            side_effect=httpx.ConnectError("connection failed")
+        )
+
+        with httpx.Client() as http_client:
+            telegram = TelegramClient("test-token", "-100123", client=http_client)
+            delivery = telegram.send_message("Hello")
+
+    assert delivery == TelegramDelivery(
+        success=False, error="Telegram request failed: connection failed"
+    )
+
+
+def test_send_message_reports_an_invalid_telegram_response() -> None:
+    with respx.mock:
+        respx.post("https://api.telegram.org/bottest-token/sendMessage").mock(
+            return_value=httpx.Response(200, json=["unexpected"])
+        )
+
+        with httpx.Client() as http_client:
+            telegram = TelegramClient("test-token", "-100123", client=http_client)
+            delivery = telegram.send_message("Hello")
+
+    assert delivery == TelegramDelivery(
+        success=False, error="Telegram returned an invalid response"
+    )
+
+
 def test_send_message_reports_missing_configuration_without_calling_telegram() -> None:
     delivery = TelegramClient(None).send_message("Hello")
 
