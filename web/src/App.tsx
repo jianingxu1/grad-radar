@@ -65,7 +65,9 @@ export function App() {
     if (!supabase) return;
 
     void supabase.auth.getUser().then(({ data, error: sessionError }) => {
-      if (sessionError) {
+      // Supabase returns this when no browser session exists; that is the
+      // expected signed-out state, not an application error.
+      if (sessionError && sessionError.message !== "Auth session missing!") {
         setAuthError(sessionError.message);
         return;
       }

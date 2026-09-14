@@ -335,8 +335,8 @@ skip_nonce_check = false
 email_optional = false
 
 [auth.external.google]
-enabled = false
-client_id = ""
+enabled = true
+client_id = "163809872244-epuandsqca022oksj1s0pcjq4er10rhj.apps.googleusercontent.com"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET)"
 skip_nonce_check = false
 
