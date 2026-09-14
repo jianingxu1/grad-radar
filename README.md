@@ -34,6 +34,9 @@ uv run pytest
 DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:54322/postgres' uv run python -m app.cli ingest
 ```
 
+The ingestion command logs source revisions, parser counts, elapsed time, and
+failures to stderr. Set `LOG_LEVEL=DEBUG` in `.env` when diagnosing a run.
+
 ## Run the API
 
 The backend reads the direct PostgreSQL connection string from `DATABASE_URL`.
