@@ -15,7 +15,7 @@ from tenacity import (
 )
 
 from app.database.models import Source
-from app.repositories.job_postings import persist_posting
+from app.repositories.job_postings import persist_postings
 from app.sources.bootstrap import bootstrap_sources
 from app.sources.definitions import SOURCES, SourceDefinition
 from app.sources.parsing import ParseResult, get_parser
@@ -105,8 +105,7 @@ def ingest_source(
         with session_factory.begin() as session:
             source = session.query(Source).filter_by(name=definition.name).one()
             synced_at = datetime.now(UTC)
-            for posting in parsed.postings:
-                persist_posting(session, posting, synced_at)
+            persist_postings(session, parsed.postings, synced_at)
             source.last_processed_revision_sha, source.last_successful_sync_at = (
                 sha,
                 synced_at,
