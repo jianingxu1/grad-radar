@@ -13,7 +13,7 @@ interface GoogleIdentityServices {
     options: {
       shape: "rectangular" | "pill" | "circle" | "square";
       size: "large";
-      text: "continue_with";
+      text: "sign_in" | "continue_with";
       theme: "outline";
       width: number;
     },

@@ -75,13 +75,16 @@ export function App() {
     });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) googleButtonRef.current?.replaceChildren();
+      setUser(session?.user ?? null);
+    });
     return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!supabase || !googleClientId || !googleButtonRef.current) return;
+    if (user || !supabase || !googleClientId || !googleButtonRef.current) return;
     const authClient = supabase;
 
     let cancelled = false;
@@ -105,7 +108,7 @@ export function App() {
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         theme: "outline",
         size: "large",
-        text: "continue_with",
+        text: "sign_in",
         shape: "rectangular",
         width: 220,
       });
@@ -120,7 +123,7 @@ export function App() {
       cancelled = true;
       script?.removeEventListener("load", renderGoogleButton);
     };
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (path === "/faq") return;
