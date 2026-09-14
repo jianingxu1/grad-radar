@@ -42,6 +42,20 @@ def test_parser_logs_ineligible_location(caplog: pytest.LogCaptureFixture) -> No
     assert "location='Remote in Canada'" in caplog.text
 
 
+def test_speedyapply_parser_excludes_phd_specific_roles() -> None:
+    text = """## 2027 USA SWE New Graduate Positions
+### FAANG+
+| Company | Position | Location | Posting | Age |
+| --- | --- | --- | --- | --- |
+| Example | Software Engineer, Ph.D. New Grad | Seattle, WA | https://jobs.example.com/phd | 1d |
+"""
+
+    result = SpeedyApplyParser().parse(text, datetime(2026, 1, 3, tzinfo=UTC))
+
+    assert result.postings == []
+    assert result.ineligible == 1
+
+
 def test_parser_registry_resolves_known_sources() -> None:
     assert isinstance(get_parser(SourceName.SIMPLIFY), SimplifyParser)
     assert isinstance(get_parser(SourceName.SPEEDYAPPLY), SpeedyApplyParser)

@@ -1,4 +1,5 @@
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
@@ -163,6 +164,15 @@ def _append(
     if url is None:
         result.malformed += 1
         return
+    if _is_phd_specific(title):
+        result.ineligible += 1
+        logger.debug(
+            "ingestion.posting.phd_specific source=%s company=%r title=%r",
+            source,
+            company,
+            title,
+        )
+        return
     eligibility = classify_us_location(location)
     if eligibility is LocationEligibility.INELIGIBLE:
         result.ineligible += 1
@@ -202,7 +212,9 @@ def _append(
 
 
 def _first_url(value: str) -> str | None:
-    import re
-
     match = re.search(r'https?://[^\s)"<>\]]+', value)
     return match.group(0) if match else None
+
+
+def _is_phd_specific(title: str) -> bool:
+    return bool(re.search(r"\bph\.?\s*d\.?\b", title, flags=re.IGNORECASE))
