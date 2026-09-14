@@ -9,19 +9,19 @@ def normalize_apply_url(raw_url: str) -> str:
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise ValueError("apply URL must be an absolute HTTP(S) URL")
     query = dict(parse_qsl(parsed.query, keep_blank_values=True))
-    if query.get("gh_jid"):
-        return f"greenhouse-job-id:{query['gh_jid']}"
-    if "greenhouse.io" in parsed.netloc and query.get("token"):
-        return f"greenhouse-job-id:{query['token']}"
+    path = parsed.path.rstrip("/")
+
+    greenhouse_key = _greenhouse_key(parsed.netloc, path, query)
+    if greenhouse_key is not None:
+        return greenhouse_key
+
+    ashby_key = _ashby_key(parsed.netloc, path)
+    if ashby_key is not None:
+        return ashby_key
+
     if "microsoft.com" in parsed.netloc and query.get("pid"):
         return f"microsoft-job-id:{query['pid']}"
-    path = parsed.path.rstrip("/")
-    greenhouse = re.search(r"greenhouse\.io/(?:[^/]+/)?jobs/(\d+)", f"{parsed.netloc}{path}")
-    if greenhouse:
-        return f"greenhouse-job-id:{greenhouse.group(1)}"
-    ashby = re.search(r"ashbyhq\.com/([^/]+)/([^/?#]+)", f"{parsed.netloc}{path}")
-    if ashby:
-        return f"ashby-job-id:{ashby.group(1)}:{ashby.group(2)}"
+
     host = parsed.netloc.removeprefix("www.")
     if host.endswith("greenhouse.io"):
         host = "boards.greenhouse.io"
@@ -31,6 +31,24 @@ def normalize_apply_url(raw_url: str) -> str:
     if not path:
         path = ""
     return f"{parsed.scheme}://{host}{path}"
+
+
+def _greenhouse_key(host: str, path: str, query: dict[str, str]) -> str | None:
+    if query.get("gh_jid"):
+        return f"greenhouse-job-id:{query['gh_jid']}"
+    if "greenhouse.io" in host and query.get("token"):
+        return f"greenhouse-job-id:{query['token']}"
+    match = re.search(r"greenhouse\.io/(?:[^/]+/)?jobs/(\d+)", f"{host}{path}")
+    if match:
+        return f"greenhouse-job-id:{match.group(1)}"
+    return None
+
+
+def _ashby_key(host: str, path: str) -> str | None:
+    match = re.search(r"ashbyhq\.com/([^/]+)/([^/?#]+)", f"{host}{path}")
+    if match:
+        return f"ashby-job-id:{match.group(1)}:{match.group(2)}"
+    return None
 
 
 def parse_tracker_age(age: str, reference_time: datetime) -> datetime | None:
