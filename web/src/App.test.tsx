@@ -71,6 +71,32 @@ describe("App", () => {
     expect(screen.getByLabelText("Sign in with Google")).toBeVisible();
   });
 
+  it("keeps the newest filter result when an older request resolves late", async () => {
+    let resolveFirstResponse: ((value: typeof response) => void) | undefined;
+    const firstResponse = new Promise<typeof response>((resolve) => {
+      resolveFirstResponse = resolve;
+    });
+    const refreshedResponse = {
+      ...response,
+      items: [{ ...response.items[0], company_name: "Stripe" }],
+    };
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(firstResponse.then((value) => ({ ok: true, json: async () => value })))
+      .mockResolvedValueOnce({ ok: true, json: async () => refreshedResponse });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Company or role"), {
+      target: { value: "stripe" },
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("Stripe")).toBeVisible();
+
+    resolveFirstResponse?.(response);
+    await waitFor(() => expect(screen.queryByText("Figma")).not.toBeInTheDocument());
+  });
+
   it("shows the FAQ at its own URL without loading the job feed", () => {
     window.history.replaceState({}, "", "/faq");
     const fetchMock = vi.fn();

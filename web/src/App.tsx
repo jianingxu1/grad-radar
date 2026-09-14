@@ -165,6 +165,7 @@ export function App() {
     const controller = new AbortController();
     void fetchJobs(filters, controller.signal)
       .then((nextPage) => {
+        if (controller.signal.aborted) return;
         const lastPage = Math.max(1, Math.ceil(nextPage.total / PAGE_SIZE));
         if (filters.page > lastPage) {
           const next = { ...filters, page: lastPage };
