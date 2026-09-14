@@ -7,7 +7,7 @@ import httpx
 from sqlalchemy.orm import Session, sessionmaker
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_random_exponential
 
-from app.database.models import JobPostingSource, Source
+from app.database.models import Source
 from app.repositories.job_postings import persist_posting
 from app.sources.bootstrap import bootstrap_sources
 from app.sources.definitions import SOURCES, SourceDefinition
@@ -60,12 +60,6 @@ def ingest_source(
         parsed: ParseResult = get_parser(definition.parser).parse(raw.text, revision_at)
         with session_factory.begin() as session:
             source = session.query(Source).filter_by(name=definition.name).one()
-            prior_count = session.query(JobPostingSource).filter_by(source_id=source.id).count()
-            if prior_count >= 20 and len(parsed.postings) <= prior_count * 0.2:
-                raise ValueError(
-                    "suspicious eligible posting drop: "
-                    f"prior={prior_count}, new={len(parsed.postings)}"
-                )
             for posting in parsed.postings:
                 persist_posting(session, posting, datetime.now(UTC))
             source.last_processed_revision_sha, source.last_successful_sync_at = (
