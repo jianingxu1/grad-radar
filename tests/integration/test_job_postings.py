@@ -53,6 +53,31 @@ def test_persistence_deduplicates_sources_and_keeps_higher_priority_display_fiel
         assert {link.source_position for link in session.scalars(select(JobPostingSource))} == {0}
 
 
+def test_persistence_refreshes_display_fields_from_the_current_primary_source(
+    session_factory: sessionmaker[Session],
+) -> None:
+    first_seen = datetime(2026, 1, 2, tzinfo=UTC)
+    with session_factory.begin() as session:
+        assert bootstrap_sources(session) == 2
+        job = persist_posting(
+            session, _posting(SourceName.SIMPLIFY, "Old company name"), first_seen
+        )
+        job_id = job.id
+
+    with session_factory.begin() as session:
+        persist_posting(
+            session,
+            _posting(SourceName.SIMPLIFY, "Corrected company name"),
+            datetime(2026, 1, 3, tzinfo=UTC),
+        )
+
+    with session_factory() as session:
+        job = session.get(JobPosting, job_id)
+        assert job is not None
+        assert job.company_name == "Corrected company name"
+        assert job.first_seen_at == first_seen
+
+
 def test_batch_persistence_deduplicates_keys_and_preserves_source_priority(
     session_factory: sessionmaker[Session],
 ) -> None:

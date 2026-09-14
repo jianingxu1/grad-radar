@@ -63,7 +63,7 @@ def persist_postings(
                 current_posting.source_name
             ):
                 new_postings_by_key[posting.application_key] = posting
-        elif _priority(posting.source_name) < _display_priority(known_sources):
+        elif _priority(posting.source_name) <= _display_priority(known_sources):
             job.company_name, job.title = posting.company_name, posting.title
             job.apply_url, job.location, job.listed_at = (
                 str(posting.apply_url),
