@@ -8,7 +8,8 @@ from app.config.settings import Settings
 
 
 def create_session_factory(settings: Settings) -> sessionmaker[Session]:
-    engine: Engine = create_engine(str(settings.database_url), pool_pre_ping=True)
+    database_url = str(settings.database_url).replace("postgresql://", "postgresql+psycopg://", 1)
+    engine: Engine = create_engine(database_url, pool_pre_ping=True)
     return sessionmaker(bind=engine, expire_on_commit=False)
 
 

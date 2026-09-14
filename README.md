@@ -21,3 +21,13 @@ supabase status
 Copy the direct PostgreSQL connection string reported by `supabase status`
 into `.env` as `DATABASE_URL`. Reset the local database with
 `supabase db reset`.
+
+## Verify ingestion
+
+Integration tests start a disposable PostgreSQL container, apply the committed
+Supabase migrations, and roll back each test's changes. Docker must be running.
+
+```bash
+uv run pytest
+DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:54322/postgres' uv run python -m app.cli ingest
+```
