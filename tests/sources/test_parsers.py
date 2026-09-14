@@ -1,6 +1,8 @@
 from datetime import UTC, datetime
 
-from app.sources.parsers import parse_simplify, parse_speedyapply
+import pytest
+
+from app.sources.parsing import SimplifyParser, SpeedyApplyParser, get_parser
 
 
 def test_speedyapply_parser_maps_headers_and_posting_link() -> None:
@@ -13,7 +15,7 @@ def test_speedyapply_parser_maps_headers_and_posting_link() -> None:
             "| Acme | SWE | Seattle, WA | [Apply](https://jobs.example.com/1) | 3d |",
         ]
     )
-    result = parse_speedyapply(text, datetime(2026, 1, 3, tzinfo=UTC))
+    result = SpeedyApplyParser().parse(text, datetime(2026, 1, 3, tzinfo=UTC))
     assert result.postings[0].location == "Seattle, WA"
     assert result.postings[0].apply_url == "https://jobs.example.com/1"
 
@@ -30,6 +32,16 @@ def test_simplify_parser_selects_apply_link_and_us_row() -> None:
         "Inactive roles",
     ]
     text = "\n".join(rows)
-    result = parse_simplify(text, datetime(2026, 1, 3, tzinfo=UTC))
+    result = SimplifyParser().parse(text, datetime(2026, 1, 3, tzinfo=UTC))
     assert [posting.company_name for posting in result.postings] == ["Acme"]
     assert result.ineligible == 1
+
+
+def test_parser_registry_resolves_known_sources() -> None:
+    assert isinstance(get_parser("simplify"), SimplifyParser)
+    assert isinstance(get_parser("speedyapply"), SpeedyApplyParser)
+
+
+def test_parser_registry_rejects_unknown_source() -> None:
+    with pytest.raises(ValueError, match="unsupported source parser"):
+        get_parser("unknown")

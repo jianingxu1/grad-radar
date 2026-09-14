@@ -11,7 +11,7 @@ from app.database.models import JobPostingSource, Source
 from app.repositories.job_postings import persist_posting
 from app.sources.bootstrap import bootstrap_sources
 from app.sources.definitions import SOURCES, SourceDefinition
-from app.sources.parsers import ParseResult, parse_simplify, parse_speedyapply
+from app.sources.parsing import ParseResult, get_parser
 
 logger = logging.getLogger(__name__)
 
@@ -57,9 +57,7 @@ def ingest_source(
             f"https://raw.githubusercontent.com/{definition.repository}/{sha}/{definition.file_path}",
         )
         raw.raise_for_status()
-        parsed: ParseResult = (
-            parse_simplify if definition.parser == "simplify" else parse_speedyapply
-        )(raw.text, revision_at)
+        parsed: ParseResult = get_parser(definition.parser).parse(raw.text, revision_at)
         with session_factory.begin() as session:
             source = session.query(Source).filter_by(name=definition.name).one()
             prior_count = session.query(JobPostingSource).filter_by(source_id=source.id).count()

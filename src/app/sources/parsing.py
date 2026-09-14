@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Protocol
 
 from bs4 import BeautifulSoup
 
@@ -17,7 +18,34 @@ class ParseResult:
     malformed: int = 0
 
 
-def parse_speedyapply(text: str, revision_at: datetime) -> ParseResult:
+class SourceParser(Protocol):
+    def parse(self, text: str, revision_at: datetime) -> ParseResult: ...
+
+
+class SpeedyApplyParser:
+    def parse(self, text: str, revision_at: datetime) -> ParseResult:
+        return _parse_speedyapply(text, revision_at)
+
+
+class SimplifyParser:
+    def parse(self, text: str, revision_at: datetime) -> ParseResult:
+        return _parse_simplify(text, revision_at)
+
+
+PARSERS: dict[str, SourceParser] = {
+    "simplify": SimplifyParser(),
+    "speedyapply": SpeedyApplyParser(),
+}
+
+
+def get_parser(name: str) -> SourceParser:
+    try:
+        return PARSERS[name]
+    except KeyError as error:
+        raise ValueError(f"unsupported source parser: {name}") from error
+
+
+def _parse_speedyapply(text: str, revision_at: datetime) -> ParseResult:
     heading = "2027 USA SWE New Graduate Positions"
     if heading not in text:
         raise ValueError("missing SpeedyApply new-grad heading")
@@ -61,7 +89,7 @@ def parse_speedyapply(text: str, revision_at: datetime) -> ParseResult:
     return result
 
 
-def parse_simplify(text: str, revision_at: datetime) -> ParseResult:
+def _parse_simplify(text: str, revision_at: datetime) -> ParseResult:
     marker = "## 💻 Software Engineering New Grad Roles"
     if marker not in text:
         raise ValueError("missing Simplify SWE heading")
