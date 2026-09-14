@@ -18,6 +18,11 @@ from app.domain.location_eligibility import LocationEligibility, classify_us_loc
         ("Seattle", LocationEligibility.ELIGIBLE),
         ("Washington, DC", LocationEligibility.ELIGIBLE),
         ("London, United Kingdom", LocationEligibility.INELIGIBLE),
+        ("Madrid, Spain", LocationEligibility.INELIGIBLE),
+        ("Milan, Italy", LocationEligibility.INELIGIBLE),
+        ("London, U.K.", LocationEligibility.INELIGIBLE),
+        ("Seoul, Republic of Korea", LocationEligibility.INELIGIBLE),
+        ("Dubai, UAE", LocationEligibility.INELIGIBLE),
     ],
 )
 def test_location_classification(location: str, expected: LocationEligibility) -> None:

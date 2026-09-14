@@ -142,19 +142,47 @@ TECH_HUB_CITIES = frozenset(
 )
 EXPLICIT_NON_US_LOCATIONS = frozenset(
     {
+        "argentina",
         "australia",
+        "austria",
+        "belgium",
+        "brazil",
         "canada",
+        "chile",
         "china",
+        "czech republic",
+        "denmark",
+        "finland",
         "france",
         "germany",
+        "hong kong",
+        "hungary",
         "india",
         "ireland",
+        "israel",
+        "italy",
         "japan",
+        "mexico",
         "netherlands",
+        "new zealand",
+        "norway",
         "poland",
+        "portugal",
+        "republic of korea",
+        "romania",
         "singapore",
-        "united kingdom",
+        "south korea",
+        "spain",
+        "sweden",
+        "switzerland",
+        "taiwan",
+        "turkey",
+        "u.k.",
+        "uae",
         "uk",
+        "ukraine",
+        "united arab emirates",
+        "united kingdom",
     }
 )
 
@@ -178,4 +206,4 @@ def _has_us_signal(value: str) -> bool:
 
 
 def _contains_any_phrase(value: str, phrases: frozenset[str]) -> bool:
-    return any(re.search(rf"\b{re.escape(phrase)}\b", value) for phrase in phrases)
+    return any(re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", value) for phrase in phrases)
