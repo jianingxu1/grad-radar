@@ -3,7 +3,7 @@ from datetime import datetime
 
 from bs4 import BeautifulSoup
 
-from app.domain.application_identity import normalize_apply_url, parse_tracker_age
+from app.domain.job_posting_normalization import normalize_apply_url, parse_tracker_age
 from app.domain.location_eligibility import LocationEligibility, classify_us_location
 from app.models.parsed_job_posting import ParsedJobPosting
 
