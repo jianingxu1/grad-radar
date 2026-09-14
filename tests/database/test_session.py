@@ -11,6 +11,8 @@ def test_session_factory_uses_installed_psycopg_driver() -> None:
     session_factory = create_session_factory(settings)
 
     assert session_factory.kw["bind"].url.drivername == "postgresql+psycopg"
+    assert session_factory.kw["bind"].pool.size() == 5
+    assert session_factory.kw["bind"].pool._max_overflow == 0
 
 
 def test_models_target_the_migration_schema() -> None:

@@ -168,14 +168,17 @@ records and explainable source links.
 
 ### 10. Build the public read path
 
-- Add FastAPI endpoints for health, paginated job listings, one job, and filter
-  metadata.
-- Return a job's source names and URLs from the association table.
+- Add one FastAPI endpoint, `GET /v1/jobs`, with pagination and filters for
+  keyword, company, location, remote status, and first-seen time.
+- Return each job's company name, title, location, application URL, estimated
+  listing date, first-seen time, and source names and URLs.
+- Order the feed by estimated tracker listing date, newest first. Jobs without
+  a tracker date appear last.
 - Keep database credentials and Supabase secrets on the backend only.
 - Build the React feed after the API contract is tested.
 
-**Done when:** a user can browse a current job feed and see where every result
-came from.
+**Done when:** a user can page through a current job feed, filter it, and see
+where every result came from.
 
 ## Deferred work
 

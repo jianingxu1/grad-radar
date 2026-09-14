@@ -1,6 +1,8 @@
+from collections import defaultdict
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import Select, or_, select
@@ -8,19 +10,14 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.api.schemas import JobPageResponse, JobResponse, SourceResponse
 from app.database.models import JobPosting, JobPostingSource, Source
+from app.database.session import get_session_factory
 
 
 def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRouter:
     router = APIRouter()
 
     def get_session() -> Iterator[Session]:
-        if session_factory is None:
-            from app.config.settings import get_settings
-            from app.database.session import create_session_factory
-
-            factory = create_session_factory(get_settings())
-        else:
-            factory = session_factory
+        factory = get_session_factory() if session_factory is None else session_factory
         with factory() as session:
             yield session
 
@@ -54,24 +51,36 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
                 JobPosting.first_seen_at >= datetime.now(UTC) - timedelta(hours=posted_within_hours)
             )
         jobs = session.scalars(
-            statement.order_by(JobPosting.first_seen_at.desc(), JobPosting.id.desc())
+            statement.order_by(JobPosting.listed_at.desc().nulls_last(), JobPosting.id.desc())
             .offset(offset)
             .limit(limit)
         ).all()
+        sources_by_job = _sources_by_job(session, [job.id for job in jobs])
         return JobPageResponse(
-            items=[_job_response(session, job) for job in jobs], offset=offset, limit=limit
+            items=[_job_response(job, sources_by_job[job.id]) for job in jobs],
+            offset=offset,
+            limit=limit,
         )
 
     return router
 
 
-def _job_response(session: Session, job: JobPosting) -> JobResponse:
-    sources = session.execute(
-        select(Source.name, Source.url)
+def _sources_by_job(session: Session, job_ids: list[UUID]) -> dict[UUID, list[SourceResponse]]:
+    sources_by_job: dict[UUID, list[SourceResponse]] = defaultdict(list)
+    if not job_ids:
+        return sources_by_job
+    rows = session.execute(
+        select(JobPostingSource.job_posting_id, Source.name, Source.url)
         .join(JobPostingSource, JobPostingSource.source_id == Source.id)
-        .where(JobPostingSource.job_posting_id == job.id)
-        .order_by(Source.name)
+        .where(JobPostingSource.job_posting_id.in_(job_ids))
+        .order_by(JobPostingSource.job_posting_id, Source.name)
     ).all()
+    for job_id, name, url in rows:
+        sources_by_job[job_id].append(SourceResponse(name=name, url=url))
+    return sources_by_job
+
+
+def _job_response(job: JobPosting, sources: list[SourceResponse]) -> JobResponse:
     return JobResponse(
         id=job.id,
         company_name=job.company_name,
@@ -80,5 +89,5 @@ def _job_response(session: Session, job: JobPosting) -> JobResponse:
         location=job.location,
         listed_at=job.listed_at,
         first_seen_at=job.first_seen_at,
-        sources=[SourceResponse(name=name, url=url) for name, url in sources],
+        sources=sources,
     )
