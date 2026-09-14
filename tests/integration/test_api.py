@@ -83,6 +83,7 @@ def test_jobs_api_filters_paginates_and_returns_listing_attributes(
     body = response.json()
     assert body["offset"] == 0
     assert body["limit"] == 1
+    assert body["total"] == 1
     assert [job["id"] for job in body["items"]] == [str(recent.id)]
     assert body["items"][0] == {
         "id": str(recent.id),
@@ -96,6 +97,18 @@ def test_jobs_api_filters_paginates_and_returns_listing_attributes(
             {"name": "simplify", "url": "https://github.com/SimplifyJobs/New-Grad-Positions"}
         ],
     }
+    assert body["source_freshness"] == [
+        {
+            "name": "simplify",
+            "url": "https://github.com/SimplifyJobs/New-Grad-Positions",
+            "last_successful_sync_at": now.isoformat().replace("+00:00", "Z"),
+        },
+        {
+            "name": "speedyapply",
+            "url": "https://github.com/speedyapply/2027-SWE-College-Jobs",
+            "last_successful_sync_at": None,
+        },
+    ]
 
     all_jobs = client.get("/v1/jobs")
     assert [job["id"] for job in all_jobs.json()["items"]] == [
@@ -203,7 +216,15 @@ def test_health_endpoint(session_factory: sessionmaker[Session]) -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_jobs_api_loads_provenance_in_one_batched_query(
+def test_api_allows_configured_frontend_origin(session_factory: sessionmaker[Session]) -> None:
+    response = TestClient(create_app(session_factory)).get(
+        "/v1/jobs", headers={"Origin": "http://localhost:5173"}
+    )
+
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_jobs_api_loads_provenance_and_metadata_in_batched_queries(
     session_factory: sessionmaker[Session],
 ) -> None:
     now = datetime.now(UTC)
@@ -256,4 +277,4 @@ def test_jobs_api_loads_provenance_in_one_batched_query(
         event.remove(engine, "before_cursor_execute", count_selects)
 
     assert response.status_code == 200
-    assert len(statements) == 2
+    assert len(statements) == 4

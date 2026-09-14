@@ -83,8 +83,9 @@ The parsers are intentionally separate because the formats differ:
 
 ### Polling rules
 
-- Check both source files every 10 minutes using their commit/blob SHA; parse
-  only changed files.
+- Check both source files every 15 minutes from 7 AM through 8:45 PM Pacific,
+  then every two hours overnight, using their commit/blob SHA; parse only
+  changed files.
 - Use bounded retries with exponential backoff. One failing source must not halt
   the run.
 - Treat a parse as successful only if the expected table is found and basic
@@ -192,7 +193,8 @@ accurate.
 ### Non-functional requirements
 
 - The system should be able to detect a change to an onboarded source file
-  within 10 minutes under normal operation.
+  within 15 minutes between 7 AM and 9 PM Pacific, and within two hours
+  overnight, under normal operation.
 - The system should be able to ingest repeated fetches idempotently and avoid
   duplicate job records.
 - The system should be able to continue processing healthy sources when one

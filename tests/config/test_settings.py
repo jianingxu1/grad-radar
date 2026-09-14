@@ -19,3 +19,14 @@ def test_settings_reads_database_url() -> None:
     )
 
     assert str(settings.database_url).startswith("postgresql://postgres:postgres@localhost")
+
+
+def test_settings_parses_frontend_origins() -> None:
+    settings = Settings.model_validate(
+        {
+            "database_url": "postgresql://postgres:postgres@localhost:54322/postgres",
+            "frontend_origins": "https://app.example.com, https://preview.example.com ",
+        }
+    )
+
+    assert settings.cors_origins == ["https://app.example.com", "https://preview.example.com"]

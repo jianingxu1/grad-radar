@@ -5,10 +5,16 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import Select, exists, or_, select, text
+from sqlalchemy import Select, exists, func, or_, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.api.schemas import HealthResponse, JobPageResponse, JobResponse, SourceResponse
+from app.api.schemas import (
+    HealthResponse,
+    JobPageResponse,
+    JobResponse,
+    SourceFreshnessResponse,
+    SourceResponse,
+)
 from app.database.models import JobPosting, JobPostingSource, Source
 from app.database.session import get_session_factory
 from app.sources.definitions import SourceName
@@ -75,6 +81,7 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
             statement = statement.where(
                 JobPosting.listed_at >= datetime.now(UTC) - timedelta(days=listed_within_days)
             )
+        total = session.scalar(select(func.count()).select_from(statement.subquery()))
         jobs = session.scalars(
             statement.order_by(JobPosting.listed_at.desc().nulls_last(), JobPosting.id.desc())
             .offset(offset)
@@ -85,6 +92,8 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
             items=[_job_response(job, sources_by_job[job.id]) for job in jobs],
             offset=offset,
             limit=limit,
+            total=total or 0,
+            source_freshness=_source_freshness(session),
         )
 
     return router
@@ -103,6 +112,17 @@ def _sources_by_job(session: Session, job_ids: list[UUID]) -> dict[UUID, list[So
     for job_id, name, url in rows:
         sources_by_job[job_id].append(SourceResponse(name=name, url=url))
     return sources_by_job
+
+
+def _source_freshness(session: Session) -> list[SourceFreshnessResponse]:
+    return [
+        SourceFreshnessResponse(
+            name=source.name,
+            url=source.url,
+            last_successful_sync_at=source.last_successful_sync_at,
+        )
+        for source in session.scalars(select(Source).order_by(Source.name))
+    ]
 
 
 def _job_response(job: JobPosting, sources: list[SourceResponse]) -> JobResponse:

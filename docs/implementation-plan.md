@@ -34,10 +34,10 @@ architecture; this file tracks delivery progress.
 
 ## Phase 3 — website
 
-- [ ] Build the React and TypeScript read-only feed.
-- [ ] Add URL-backed filters, loading/empty/error states, and accessibility
+- [x] Build the React and TypeScript read-only feed.
+- [x] Add URL-backed filters, loading/empty/error states, and accessibility
   basics.
-- [ ] Show clear freshness and source-supplied-link labels.
+- [x] Show clear freshness and source-supplied-link labels.
 - [ ] Deploy the API, scheduled ingestion worker, PostgreSQL database, and
   static frontend with health monitoring.
 

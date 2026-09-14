@@ -4,6 +4,7 @@
 
 - `docs/` — product design and phased roadmap.
 - `src/app/` — backend package; database models and source ingestion.
+- `web/` — Vite React and TypeScript public job feed.
 
 Document every new top-level project folder in this section.
 
@@ -26,6 +27,9 @@ uv run ruff format .
 uv run pyright
 uv run pytest
 uv run pre-commit run --all-files
+npm --prefix web run lint
+npm --prefix web run format:check
+npm --prefix web run test
 ```
 
 ## Quality checks

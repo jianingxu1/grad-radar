@@ -9,6 +9,10 @@ class SourceResponse(BaseModel):
     url: str
 
 
+class SourceFreshnessResponse(SourceResponse):
+    last_successful_sync_at: datetime | None
+
+
 class HealthResponse(BaseModel):
     status: str
 
@@ -28,3 +32,5 @@ class JobPageResponse(BaseModel):
     items: list[JobResponse]
     offset: int
     limit: int
+    total: int
+    source_freshness: list[SourceFreshnessResponse]

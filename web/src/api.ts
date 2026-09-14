@@ -1,0 +1,69 @@
+export type SourceName = "simplify" | "speedyapply";
+
+export type Job = {
+  id: string;
+  company_name: string;
+  title: string;
+  apply_url: string;
+  location: string;
+  listed_at: string | null;
+  first_seen_at: string;
+  sources: Array<{ name: SourceName; url: string }>;
+};
+
+export type SourceFreshness = {
+  name: SourceName;
+  url: string;
+  last_successful_sync_at: string | null;
+};
+
+export type JobPage = {
+  items: Job[];
+  offset: number;
+  limit: number;
+  total: number;
+  source_freshness: SourceFreshness[];
+};
+
+export type JobFilters = {
+  q: string;
+  location: string;
+  remote: "" | "true" | "false";
+  company: string;
+  postedWithinHours: string;
+  listedWithinDays: string;
+  sources: SourceName[];
+  page: number;
+};
+
+export const PAGE_SIZE = 25;
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000").replace(
+  /\/$/,
+  "",
+);
+
+export function toSearchParams(filters: JobFilters): URLSearchParams {
+  const params = new URLSearchParams({
+    offset: String((filters.page - 1) * PAGE_SIZE),
+    limit: String(PAGE_SIZE),
+  });
+  const scalarFilters: Array<[string, string]> = [
+    ["q", filters.q],
+    ["location", filters.location],
+    ["remote", filters.remote],
+    ["company", filters.company],
+    ["posted_within_hours", filters.postedWithinHours],
+    ["listed_within_days", filters.listedWithinDays],
+  ];
+  for (const [key, value] of scalarFilters) {
+    if (value) params.set(key, value);
+  }
+  for (const source of filters.sources) params.append("sources", source);
+  return params;
+}
+
+export async function fetchJobs(filters: JobFilters, signal?: AbortSignal): Promise<JobPage> {
+  const response = await fetch(`${apiBaseUrl}/v1/jobs?${toSearchParams(filters)}`, { signal });
+  if (!response.ok) throw new Error(`The jobs feed could not be loaded (${response.status}).`);
+  return response.json() as Promise<JobPage>;
+}
