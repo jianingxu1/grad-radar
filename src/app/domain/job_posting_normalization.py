@@ -1,29 +1,51 @@
 import re
 from datetime import UTC, datetime, timedelta
-from urllib.parse import parse_qsl, urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse
+
+TRACKING_QUERY_PARAMETERS = frozenset(
+    {
+        "cid",
+        "client",
+        "gh_src",
+        "hl",
+        "iis",
+        "iisn",
+        "lever-source",
+        "p_sid",
+        "p_uid",
+        "q",
+        "ref",
+        "referrer",
+        "source",
+        "src",
+        "target_level",
+    }
+)
 
 
 def normalize_apply_url(raw_url: str) -> str:
-    candidate = raw_url.strip().lower()
+    candidate = raw_url.strip()
     parsed = urlparse(candidate)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+    scheme = parsed.scheme.lower()
+    host = parsed.netloc.lower()
+    if scheme not in {"http", "https"} or not host:
         raise ValueError("apply URL must be an absolute HTTP(S) URL")
     query = dict(parse_qsl(parsed.query, keep_blank_values=True))
     path = parsed.path.rstrip("/")
 
-    greenhouse_key = _greenhouse_key(parsed.netloc, path, query)
+    greenhouse_key = _greenhouse_key(host, path, query)
     if greenhouse_key is not None:
         return greenhouse_key
 
-    ashby_key = _ashby_key(parsed.netloc, path)
+    ashby_key = _ashby_key(host, path)
     if ashby_key is not None:
         return ashby_key
 
-    microsoft_key = _microsoft_key(parsed.netloc, query)
+    microsoft_key = _microsoft_key(host, query)
     if microsoft_key is not None:
         return microsoft_key
 
-    host = parsed.netloc.removeprefix("www.")
+    host = host.removeprefix("www.")
     if host.endswith("greenhouse.io"):
         host = "boards.greenhouse.io"
     if "myworkdayjobs.com" in host:
@@ -31,7 +53,18 @@ def normalize_apply_url(raw_url: str) -> str:
     path = re.sub(r"/(apply|application|detail)$", "", path).rstrip("/")
     if not path:
         path = ""
-    return f"{parsed.scheme}://{host}{path}"
+    normalized_query = _normalize_query(parsed.query)
+    query_suffix = f"?{normalized_query}" if normalized_query else ""
+    return f"{scheme}://{host}{path}{query_suffix}"
+
+
+def _normalize_query(query: str) -> str:
+    retained = [
+        (key, value)
+        for key, value in parse_qsl(query, keep_blank_values=True)
+        if not (key.lower().startswith("utm_") or key.lower() in TRACKING_QUERY_PARAMETERS)
+    ]
+    return urlencode(sorted(retained))
 
 
 def _greenhouse_key(host: str, path: str, query: dict[str, str]) -> str | None:

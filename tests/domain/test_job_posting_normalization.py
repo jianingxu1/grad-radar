@@ -54,6 +54,15 @@ def test_normalize_apply_url(url: str, expected: str) -> None:
     assert normalize_apply_url(url) == expected
 
 
+def test_normalize_apply_url_preserves_generic_job_identifiers_and_path_case() -> None:
+    first = normalize_apply_url("https://jobs.example.com/Jobs/NewGrad?job_id=Alpha")
+    second = normalize_apply_url("https://jobs.example.com/jobs/newgrad?job_id=Beta")
+
+    assert first == "https://jobs.example.com/Jobs/NewGrad?job_id=Alpha"
+    assert second == "https://jobs.example.com/jobs/newgrad?job_id=Beta"
+    assert first != second
+
+
 @pytest.mark.parametrize("url", ["", "/jobs/1", "ftp://example.com/job", "example.com/job"])
 def test_normalize_apply_url_rejects_invalid_urls(url: str) -> None:
     with pytest.raises(ValueError):
