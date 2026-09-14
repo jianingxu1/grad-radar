@@ -21,10 +21,3 @@
 | Company | Position | Location | Posting | Age |
 |---|---|---|---|---|
 | Replit | Software Engineer - New Grad - 2027 | Foster City, CA | <a href="https://jobs.ashbyhq.com/replit/b5e81eae-06f9-4798-8988-2d06ca936dbc">Apply</a> | 5d |
-
-## 2027 International SWE New Graduate Positions
-
-### FAANG+
-| Company | Position | Location | Salary | Posting | Age |
-|---|---|---|---|---|---|
-| Example International | Software Engineer | London, UK | £80k/yr | <a href="https://example.com/international">Apply</a> | 1d |
