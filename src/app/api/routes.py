@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.api.schemas import HealthResponse, JobPageResponse, JobResponse, SourceResponse
 from app.database.models import JobPosting, JobPostingSource, Source
 from app.database.session import get_session_factory
+from app.sources.definitions import SourceName
 
 
 def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRouter:
@@ -37,6 +38,8 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         remote: bool | None = None,
         company: str | None = None,
         posted_within_hours: Annotated[int | None, Query(ge=1)] = None,
+        listed_within_days: Annotated[int | None, Query(ge=1)] = None,
+        sources: Annotated[list[SourceName] | None, Query()] = None,
         offset: Annotated[int, Query(ge=0)] = 0,
         limit: Annotated[int, Query(ge=1, le=100)] = 50,
         session: Annotated[Session, Depends(get_session)],
@@ -49,6 +52,8 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
                 JobPostingSource.last_seen_at == Source.last_successful_sync_at,
             )
         )
+        if sources:
+            current_source_link = current_source_link.where(Source.name.in_(sources))
         statement: Select[tuple[JobPosting]] = select(JobPosting).where(exists(current_source_link))
         if q:
             pattern = f"%{q.strip()}%"
@@ -65,6 +70,10 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         if posted_within_hours:
             statement = statement.where(
                 JobPosting.first_seen_at >= datetime.now(UTC) - timedelta(hours=posted_within_hours)
+            )
+        if listed_within_days:
+            statement = statement.where(
+                JobPosting.listed_at >= datetime.now(UTC) - timedelta(days=listed_within_days)
             )
         jobs = session.scalars(
             statement.order_by(JobPosting.listed_at.desc().nulls_last(), JobPosting.id.desc())

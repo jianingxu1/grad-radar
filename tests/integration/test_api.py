@@ -123,9 +123,51 @@ def test_jobs_api_filters_paginates_and_returns_listing_attributes(
     assert [job["id"] for job in client.get("/v1/jobs?posted_within_hours=1").json()["items"]] == [
         str(recent.id)
     ]
+    assert [job["id"] for job in client.get("/v1/jobs?listed_within_days=1").json()["items"]] == [
+        str(newest.id),
+        str(recent.id),
+    ]
     assert [job["id"] for job in client.get("/v1/jobs?offset=1&limit=1").json()["items"]] == [
         str(recent.id)
     ]
+
+
+def test_jobs_api_filters_current_jobs_by_source(
+    session_factory: sessionmaker[Session],
+) -> None:
+    now = datetime.now(UTC)
+    with session_factory.begin() as session:
+        bootstrap_sources(session)
+        simplify = persist_posting(
+            session,
+            _posting("https://jobs.example.com/simplify", "Simplify", "Boston, MA", now),
+            now,
+        )
+        speedyapply = persist_posting(
+            session,
+            ParsedJobPosting(
+                source_name=SourceName.SPEEDYAPPLY,
+                company_name="SpeedyApply",
+                title="Software Engineer, New Grad",
+                apply_url="https://jobs.example.com/speedyapply",
+                application_key="https://jobs.example.com/speedyapply",
+                location="New York, NY",
+                listed_at=now - timedelta(minutes=1),
+            ),
+            now,
+        )
+        _mark_source_current(session, SourceName.SIMPLIFY, now)
+        _mark_source_current(session, SourceName.SPEEDYAPPLY, now)
+
+    client = TestClient(create_app(session_factory))
+
+    assert [job["id"] for job in client.get("/v1/jobs?sources=simplify").json()["items"]] == [
+        str(simplify.id)
+    ]
+    assert [
+        job["id"]
+        for job in client.get("/v1/jobs?sources=simplify&sources=speedyapply").json()["items"]
+    ] == [str(simplify.id), str(speedyapply.id)]
 
 
 def test_jobs_api_excludes_jobs_absent_from_all_sources(
