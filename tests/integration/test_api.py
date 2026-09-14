@@ -139,7 +139,7 @@ def test_jobs_api_filters_paginates_and_returns_listing_attributes(
     assert [job["id"] for job in client.get("/v1/jobs?posted_within_hours=1").json()["items"]] == [
         str(recent.id)
     ]
-    assert [job["id"] for job in client.get("/v1/jobs?listed_within_days=1").json()["items"]] == [
+    assert [job["id"] for job in client.get("/v1/jobs?listed_within_hours=24").json()["items"]] == [
         str(newest.id),
         str(recent.id),
     ]
@@ -195,7 +195,7 @@ def test_jobs_api_filters_current_jobs_by_source(
     ] == [str(simplify.id), str(speedyapply.id)]
 
 
-def test_jobs_api_listing_age_filter_includes_yesterday(
+def test_jobs_api_listing_age_filter_uses_hours(
     session_factory: sessionmaker[Session],
 ) -> None:
     now = datetime.now(UTC)
@@ -216,7 +216,7 @@ def test_jobs_api_listing_age_filter_includes_yesterday(
         )
         _mark_source_current(session, SourceName.SIMPLIFY, now)
 
-    response = TestClient(create_app(session_factory)).get("/v1/jobs?listed_within_days=1")
+    response = TestClient(create_app(session_factory)).get("/v1/jobs?listed_within_hours=48")
 
     assert response.status_code == 200
     assert [job["id"] for job in response.json()["items"]] == [str(today.id), str(yesterday.id)]

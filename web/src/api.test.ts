@@ -9,27 +9,36 @@ describe("job feed query state", () => {
       q: "platform",
       location: "New York",
       remote: "true",
-      company: "Figma",
-      postedWithinHours: "24",
-      listedWithinDays: "7",
+      listedWithinHours: "168",
       sources: ["simplify", "speedyapply"],
+      sortBy: "company_name",
+      sortDirection: "asc",
       page: 2,
     });
 
     expect(params.get("offset")).toBe(String(PAGE_SIZE));
     expect(params.getAll("sources")).toEqual(["simplify", "speedyapply"]);
-    expect(params.get("posted_within_hours")).toBe("24");
+    expect(params.get("sort_by")).toBe("company_name");
+    expect(params.get("sort_direction")).toBe("asc");
   });
 
   it("hydrates shareable filters and omits the first page from the URL", () => {
-    const filters = filtersFromSearch("?q=platform&remote=false&sources=simplify&page=3");
+    const filters = filtersFromSearch(
+      "?q=platform&remote=false&sources=simplify&sort_by=company_name&sort_direction=asc&page=3",
+    );
 
     expect(filters).toMatchObject({
       q: "platform",
       remote: "false",
       sources: ["simplify"],
+      sortBy: "company_name",
+      sortDirection: "asc",
       page: 3,
     });
     expect(filtersToSearch({ ...filters, page: 1 })).not.toContain("page=");
+  });
+
+  it("ignores an invalid listing-hours value in a shared URL", () => {
+    expect(filtersFromSearch("?listed_within_hours=two-days").listedWithinHours).toBe("");
   });
 });

@@ -1,6 +1,6 @@
 from collections import defaultdict
 from collections.abc import Iterator
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -44,7 +44,7 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         remote: bool | None = None,
         company: str | None = None,
         posted_within_hours: Annotated[int | None, Query(ge=1)] = None,
-        listed_within_days: Annotated[int | None, Query(ge=1)] = None,
+        listed_within_hours: Annotated[int | None, Query(ge=1)] = None,
         sources: Annotated[list[SourceName] | None, Query()] = None,
         sort_by: Literal["company_name", "listed_at"] = "listed_at",
         sort_direction: Literal["asc", "desc"] = "desc",
@@ -107,11 +107,10 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
             statement = statement.where(
                 JobPosting.first_seen_at >= datetime.now(UTC) - timedelta(hours=posted_within_hours)
             )
-        if listed_within_days:
-            earliest_listing_day = datetime.combine(
-                datetime.now(UTC).date() - timedelta(days=listed_within_days), time.min, UTC
+        if listed_within_hours:
+            statement = statement.where(
+                JobPosting.listed_at >= datetime.now(UTC) - timedelta(hours=listed_within_hours)
             )
-            statement = statement.where(JobPosting.listed_at >= earliest_listing_day)
         total = session.scalar(select(func.count()).select_from(statement.subquery()))
         if sort_by == "listed_at":
             date_order = (

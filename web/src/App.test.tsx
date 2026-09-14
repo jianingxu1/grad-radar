@@ -43,13 +43,33 @@ describe("App", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
     render(<App />);
 
-    expect(
-      await screen.findByRole("heading", { name: "Platform Engineer, New Grad" }),
-    ).toBeVisible();
+    expect(await screen.findByText("Platform Engineer, New Grad")).toBeVisible();
     expect(screen.getByText(/Tracker freshness:/)).toBeVisible();
     const applicationLink = screen.getByRole("link", { name: /Open application link for Figma/ });
     expect(applicationLink).toHaveAttribute("target", "_blank");
     expect(applicationLink).toHaveAttribute("rel", "noreferrer");
+  });
+
+  it("renders source-supplied HTML in company names as plain text", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...response,
+          items: [
+            {
+              ...response.items[0],
+              company_name: '<a href="https://example.com"><strong>SpaceX</strong></a>',
+            },
+          ],
+        }),
+      }),
+    );
+    render(<App />);
+
+    expect(await screen.findByText("SpaceX")).toBeVisible();
+    expect(screen.queryByText(/<strong>/)).not.toBeInTheDocument();
   });
 
   it("resets to the first page when a filter changes and advances within bounds", async () => {
@@ -57,13 +77,45 @@ describe("App", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
     render(<App />);
 
-    await screen.findByText("Page 2 of 2");
+    await screen.findByLabelText("Page 2 of 2");
     fireEvent.change(screen.getByLabelText("Location"), { target: { value: "Boston" } });
     await waitFor(() => expect(window.location.search).toContain("location=Boston"));
     expect(window.location.search).not.toContain("page=");
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await waitFor(() => expect(window.location.search).toContain("page=2"));
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+  });
+
+  it("shows a compact paginator and GradRadar footer", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    render(<App />);
+
+    expect(await screen.findByText("Showing 1–25 of 26")).toBeVisible();
+    expect(screen.getByRole("button", { name: "1" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("GradRadar");
+  });
+
+  it("returns an out-of-range shared page to the last available page", async () => {
+    window.history.replaceState({}, "", "/?page=99");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    render(<App />);
+
+    await waitFor(() =>
+      expect(window.location.search).toBe("?sort_by=listed_at&sort_direction=desc&page=2"),
+    );
+  });
+
+  it("updates URL-backed sorting from the Company and Listed headers", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    render(<App />);
+
+    await screen.findByText("Platform Engineer, New Grad");
+    fireEvent.click(screen.getByRole("button", { name: "Company" }));
+    await waitFor(() => expect(window.location.search).toContain("sort_by=company_name"));
+    expect(window.location.search).toContain("sort_direction=asc");
+    fireEvent.click(screen.getByRole("button", { name: "Listed" }));
+    await waitFor(() => expect(window.location.search).toContain("sort_by=listed_at"));
+    expect(window.location.search).toContain("sort_direction=desc");
   });
 
   it("shows a retryable API error and clears empty filters", async () => {

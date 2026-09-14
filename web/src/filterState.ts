@@ -6,10 +6,10 @@ export const defaultFilters: JobFilters = {
   q: "",
   location: "",
   remote: "",
-  company: "",
-  postedWithinHours: "",
-  listedWithinDays: "",
+  listedWithinHours: "",
   sources: [],
+  sortBy: "listed_at",
+  sortDirection: "desc",
   page: 1,
 };
 
@@ -18,19 +18,25 @@ function positiveInteger(value: string | null, fallback: number): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function positiveIntegerString(value: string | null): string {
+  return positiveInteger(value, 0) ? (value ?? "") : "";
+}
+
 export function filtersFromSearch(search: string): JobFilters {
   const params = new URLSearchParams(search);
   const remote = params.get("remote");
+  const sortBy = params.get("sort_by");
+  const sortDirection = params.get("sort_direction");
   return {
     q: params.get("q") ?? "",
     location: params.get("location") ?? "",
     remote: remote === "true" || remote === "false" ? remote : "",
-    company: params.get("company") ?? "",
-    postedWithinHours: params.get("posted_within_hours") ?? "",
-    listedWithinDays: params.get("listed_within_days") ?? "",
+    listedWithinHours: positiveIntegerString(params.get("listed_within_hours")),
     sources: params
       .getAll("sources")
       .filter((source): source is SourceName => sourceNames.includes(source as SourceName)),
+    sortBy: sortBy === "company_name" ? sortBy : "listed_at",
+    sortDirection: sortDirection === "asc" ? sortDirection : "desc",
     page: positiveInteger(params.get("page"), 1),
   };
 }
@@ -41,9 +47,9 @@ export function filtersToSearch(filters: JobFilters): string {
     ["q", filters.q],
     ["location", filters.location],
     ["remote", filters.remote],
-    ["company", filters.company],
-    ["posted_within_hours", filters.postedWithinHours],
-    ["listed_within_days", filters.listedWithinDays],
+    ["listed_within_hours", filters.listedWithinHours],
+    ["sort_by", filters.sortBy],
+    ["sort_direction", filters.sortDirection],
   ];
   for (const [key, value] of values) if (value) params.set(key, value);
   for (const source of filters.sources) params.append("sources", source);

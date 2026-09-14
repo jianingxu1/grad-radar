@@ -15,9 +15,35 @@ function formatDate(value: string | null): string {
   );
 }
 
+function formatAge(value: string | null): string {
+  if (!value) return "—";
+  const days = Math.floor((Date.now() - new Date(value).getTime()) / 86_400_000);
+  if (days <= 0) return "today";
+  return `${days}d ago`;
+}
+
+function displayText(value: string): string {
+  const element = document.createElement("div");
+  element.innerHTML = value;
+  return element.textContent?.trim() || value;
+}
+
 function updateUrl(filters: JobFilters, replace = false): void {
   const url = `${window.location.pathname}${filtersToSearch(filters)}`;
   window.history[replace ? "replaceState" : "pushState"]({}, "", url);
+}
+
+function paginationItems(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
+  const pages = new Set([1, 2, totalPages - 1, totalPages]);
+  for (let page = currentPage - 2; page <= currentPage + 2; page += 1) {
+    if (page > 0 && page <= totalPages) pages.add(page);
+  }
+  const sortedPages = [...pages].sort((left, right) => left - right);
+  return sortedPages.flatMap((page, index) => {
+    const previous = sortedPages[index - 1];
+    return previous !== undefined && page - previous > 1 ? ["ellipsis", page] : [page];
+  });
 }
 
 export function App() {
@@ -32,7 +58,16 @@ export function App() {
   useEffect(() => {
     const controller = new AbortController();
     void fetchJobs(filters, controller.signal)
-      .then(setPage)
+      .then((nextPage) => {
+        const lastPage = Math.max(1, Math.ceil(nextPage.total / PAGE_SIZE));
+        if (filters.page > lastPage) {
+          const next = { ...filters, page: lastPage };
+          setFilters(next);
+          updateUrl(next, true);
+          return;
+        }
+        setPage(nextPage);
+      })
       .catch((reason: unknown) => {
         if ((reason as Error).name !== "AbortError") setError((reason as Error).message);
       })
@@ -75,27 +110,36 @@ export function App() {
     updateUrl(next);
   }
 
+  function changeSort(sortBy: JobFilters["sortBy"]): void {
+    const sortDirection =
+      filters.sortBy === sortBy
+        ? filters.sortDirection === "desc"
+          ? "asc"
+          : "desc"
+        : sortBy === "company_name"
+          ? "asc"
+          : "desc";
+    changeFilters({ sortBy, sortDirection });
+  }
+
   const pageCount = page ? Math.max(1, Math.ceil(page.total / PAGE_SIZE)) : 1;
   const showInitialSkeleton = loading && page === null;
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-950">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="mb-8 max-w-3xl">
-          <p className="mb-2 text-sm font-semibold tracking-wide text-indigo-700">GRADRADAR</p>
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            Find your next SWE role.
-          </h1>
-          <p className="mt-3 text-lg leading-8 text-slate-600">
-            U.S. entry-level software engineering jobs curated by community trackers.
+    <main className="flex min-h-screen flex-col bg-white text-slate-950">
+      <div className="mx-auto w-full max-w-[1800px] flex-1 px-5 py-5 sm:px-8">
+        <header className="mb-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-slate-200 pb-4">
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-xl font-semibold tracking-tight">GradRadar</h1>
+            <p className="text-sm text-slate-500">U.S. entry-level software engineering jobs</p>
+          </div>
+          <p className="text-sm text-slate-500">
+            {page ? `${page.total} roles` : "Loading roles…"}
           </p>
         </header>
 
-        <section
-          aria-label="Feed filters"
-          className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-        >
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <section aria-label="Feed filters" className="mb-3 border-b border-slate-200 pb-3">
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1.4fr_1fr_0.8fr_0.8fr_1.2fr]">
             <Field label="Search">
               <input
                 value={filters.q}
@@ -122,6 +166,18 @@ export function App() {
                 <option value="false">On-site or hybrid</option>
               </select>
             </Field>
+            <Field label="Listed within">
+              <select
+                value={filters.listedWithinHours}
+                onChange={(event) => changeFilters({ listedWithinHours: event.target.value })}
+              >
+                <option value="">Any time</option>
+                <option value="24">Past 24 hours</option>
+                <option value="48">Past 48 hours</option>
+                <option value="168">Past 7 days</option>
+                <option value="720">Past 30 days</option>
+              </select>
+            </Field>
             <Field label="Tracker source">
               <div className="flex min-h-10 items-center gap-4">
                 {(Object.keys(sourceLabels) as SourceName[]).map((source) => (
@@ -137,51 +193,13 @@ export function App() {
               </div>
             </Field>
           </div>
-          <details className="mt-4 border-t border-slate-100 pt-4">
-            <summary className="cursor-pointer text-sm font-medium text-indigo-700">
-              More filters
-            </summary>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <Field label="Company">
-                <input
-                  value={filters.company}
-                  onChange={(event) => changeFilters({ company: event.target.value })}
-                  placeholder="e.g. Figma"
-                />
-              </Field>
-              <Field label="Found by GradRadar">
-                <select
-                  value={filters.postedWithinHours}
-                  onChange={(event) => changeFilters({ postedWithinHours: event.target.value })}
-                >
-                  <option value="">Any time</option>
-                  <option value="24">Past 24 hours</option>
-                  <option value="72">Past 3 days</option>
-                  <option value="168">Past 7 days</option>
-                </select>
-              </Field>
-              <Field label="Estimated listing age">
-                <select
-                  value={filters.listedWithinDays}
-                  onChange={(event) => changeFilters({ listedWithinDays: event.target.value })}
-                >
-                  <option value="">Any time</option>
-                  <option value="1">Past day</option>
-                  <option value="7">Past week</option>
-                  <option value="30">Past month</option>
-                </select>
-              </Field>
-            </div>
-          </details>
         </section>
 
         {page && <Freshness sources={page.source_freshness} />}
         <section aria-live="polite" aria-busy={loading}>
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <p className="text-sm text-slate-600">
-              {page ? `${page.total} matching jobs` : "Loading jobs…"}
-            </p>
-            {loading && page && <span className="text-sm text-slate-500">Refreshing…</span>}
+          <div className="mb-2 flex items-center justify-between gap-4 text-sm text-slate-500">
+            <p>{page ? `${page.total} matching jobs` : "Loading jobs…"}</p>
+            {loading && page && <span>Refreshing…</span>}
           </div>
           {error && (
             <div
@@ -203,7 +221,7 @@ export function App() {
           )}
           {showInitialSkeleton && <Skeletons />}
           {!loading && !error && page?.items.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+            <div className="border border-dashed border-slate-300 p-10 text-center">
               <h2 className="text-lg font-semibold">No jobs match these filters.</h2>
               <button className="mt-3" onClick={() => changeFilters(defaultFilters)}>
                 Clear filters
@@ -211,51 +229,150 @@ export function App() {
             </div>
           )}
           {page?.items.length ? (
-            <div className="grid gap-4">
-              {page.items.map((job) => (
-                <JobCard job={job} key={job.id} />
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[960px] table-fixed border-collapse text-left">
+                <thead className="border-y border-slate-200 text-sm font-medium text-slate-500">
+                  <tr>
+                    <SortableHeader
+                      className="w-[15%]"
+                      currentSort={filters.sortBy}
+                      direction={filters.sortDirection}
+                      label="Company"
+                      onClick={() => changeSort("company_name")}
+                      sortKey="company_name"
+                    />
+                    <th className="w-[37%] px-3 py-2 font-medium">Role</th>
+                    <th className="w-[18%] px-3 py-2 font-medium">Location</th>
+                    <SortableHeader
+                      className="w-[10%]"
+                      currentSort={filters.sortBy}
+                      direction={filters.sortDirection}
+                      label="Listed"
+                      onClick={() => changeSort("listed_at")}
+                      sortKey="listed_at"
+                    />
+                    <th className="w-[10%] px-3 py-2 font-medium">Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {page.items.map((job) => (
+                    <JobRow job={job} key={job.id} />
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : null}
         </section>
 
         {page && page.total > 0 && (
-          <nav aria-label="Job feed pages" className="mt-8 flex items-center justify-between">
-            <button disabled={filters.page === 1} onClick={() => changePage(filters.page - 1)}>
-              Previous
-            </button>
-            <span className="text-sm text-slate-600">
-              Page {filters.page} of {pageCount}
-            </span>
-            <button
-              disabled={filters.page >= pageCount}
-              onClick={() => changePage(filters.page + 1)}
+          <nav
+            aria-label="Job feed pages"
+            className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4"
+          >
+            <p className="text-sm text-slate-500">
+              Showing {(filters.page - 1) * PAGE_SIZE + 1}–
+              {Math.min(filters.page * PAGE_SIZE, page.total)} of {page.total}
+            </p>
+            <div
+              className="flex items-center gap-1"
+              aria-label={`Page ${filters.page} of ${pageCount}`}
             >
-              Next
-            </button>
+              <button
+                className="bg-transparent px-2 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-950 disabled:bg-transparent disabled:text-slate-300"
+                disabled={filters.page === 1}
+                onClick={() => changePage(filters.page - 1)}
+              >
+                Previous
+              </button>
+              {paginationItems(filters.page, pageCount).map((item, index) =>
+                item === "ellipsis" ? (
+                  <span
+                    className="px-1.5 text-slate-400"
+                    key={`ellipsis-${index}`}
+                    aria-hidden="true"
+                  >
+                    …
+                  </span>
+                ) : (
+                  <button
+                    aria-current={item === filters.page ? "page" : undefined}
+                    className={
+                      item === filters.page
+                        ? "bg-slate-900 px-2.5 py-1.5 text-white hover:bg-slate-700"
+                        : "bg-transparent px-2.5 py-1.5 text-blue-700 hover:bg-blue-50 hover:text-blue-900"
+                    }
+                    key={item}
+                    onClick={() => changePage(item)}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+              <button
+                className="bg-transparent px-2 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-950 disabled:bg-transparent disabled:text-slate-300"
+                disabled={filters.page >= pageCount}
+                onClick={() => changePage(filters.page + 1)}
+              >
+                Next
+              </button>
+            </div>
           </nav>
         )}
       </div>
+      <footer className="border-t border-slate-200 px-5 py-5 sm:px-8">
+        <div className="mx-auto max-w-[1800px] text-sm font-medium tracking-tight text-slate-400">
+          © GradRadar
+        </div>
+      </footer>
     </main>
   );
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="grid gap-1 text-sm font-medium text-slate-700">
+    <label className="grid gap-1 text-xs font-medium text-slate-600">
       {label}
       {children}
     </label>
   );
 }
 
+function SortableHeader({
+  className,
+  currentSort,
+  direction,
+  label,
+  onClick,
+  sortKey,
+}: {
+  className: string;
+  currentSort: JobFilters["sortBy"];
+  direction: JobFilters["sortDirection"];
+  label: string;
+  onClick: () => void;
+  sortKey: JobFilters["sortBy"];
+}) {
+  const isActive = currentSort === sortKey;
+  return (
+    <th
+      aria-sort={isActive ? (direction === "asc" ? "ascending" : "descending") : "none"}
+      className={`${className} px-3 py-2 font-medium`}
+    >
+      <button
+        className="bg-transparent p-0 text-slate-500 hover:bg-transparent hover:text-slate-950"
+        onClick={onClick}
+      >
+        {label}
+        {isActive && <span className="ml-1 text-xs">{direction === "asc" ? "↑" : "↓"}</span>}
+      </button>
+    </th>
+  );
+}
+
 function Freshness({ sources }: { sources: JobPage["source_freshness"] }) {
   return (
-    <aside
-      className="mb-5 rounded-xl bg-indigo-50 px-4 py-3 text-sm text-indigo-950"
-      aria-label="Tracker freshness"
-    >
-      <span className="font-semibold">Tracker freshness: </span>
+    <aside className="mb-3 text-xs text-slate-500" aria-label="Tracker freshness">
+      <span>Tracker freshness: </span>
       {sources.map((source, index) => (
         <span key={source.name}>
           {index > 0 && " · "}
@@ -272,49 +389,59 @@ function Freshness({ sources }: { sources: JobPage["source_freshness"] }) {
   );
 }
 
-function JobCard({ job }: { job: JobPage["items"][number] }) {
+function JobRow({ job }: { job: JobPage["items"][number] }) {
+  const companyName = displayText(job.company_name);
+
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row">
-        <div>
-          <p className="text-sm font-semibold text-indigo-700">{job.company_name}</p>
-          <h2 className="mt-1 text-xl font-semibold">{job.title}</h2>
-          <p className="mt-2 text-slate-600">{job.location}</p>
-        </div>
-        <a className="button-primary h-fit" href={job.apply_url} target="_blank" rel="noreferrer">
-          Open application link <span className="sr-only">for {job.company_name}</span>
+    <tr className="border-b border-slate-100 text-sm hover:bg-slate-50">
+      <td className="truncate px-3 py-3 font-medium" title={companyName}>
+        {companyName}
+      </td>
+      <td className="truncate px-3 py-3">
+        <a
+          href={job.apply_url}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-blue-700 no-underline hover:underline"
+          aria-label={`Open application link for ${companyName}`}
+          title={job.title}
+        >
+          {job.title}
         </a>
-      </div>
-      <div className="mt-5 grid gap-2 border-t border-slate-100 pt-4 text-sm text-slate-600 sm:grid-cols-3">
-        <p>
-          <span className="font-medium text-slate-800">Estimated listing:</span>{" "}
-          {formatDate(job.listed_at)}
-        </p>
-        <p>
-          <span className="font-medium text-slate-800">Found by GradRadar:</span>{" "}
-          {formatDate(job.first_seen_at)}
-        </p>
-        <p>
-          <span className="font-medium text-slate-800">Sources:</span>{" "}
-          {job.sources.map((source, index) => (
-            <span key={source.name}>
-              {index > 0 && ", "}
-              <a className="underline" href={source.url} target="_blank" rel="noreferrer">
-                {sourceLabels[source.name]}
-              </a>
-            </span>
-          ))}
-        </p>
-      </div>
-    </article>
+      </td>
+      <td className="truncate px-3 py-3 text-slate-600" title={job.location}>
+        {job.location}
+      </td>
+      <td className="px-3 py-3 text-slate-500" title={formatDate(job.listed_at)}>
+        {formatAge(job.listed_at)}
+      </td>
+      <td
+        className="truncate px-3 py-3 text-slate-500"
+        title={job.sources.map((source) => sourceLabels[source.name]).join(", ")}
+      >
+        {job.sources.map((source, index) => (
+          <span key={source.name}>
+            {index > 0 && ", "}
+            <a
+              className="text-slate-500 no-underline hover:text-blue-700 hover:underline"
+              href={source.url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {sourceLabels[source.name]}
+            </a>
+          </span>
+        ))}
+      </td>
+    </tr>
   );
 }
 
 function Skeletons() {
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-0 border-y border-slate-200">
       {[1, 2, 3].map((number) => (
-        <div className="h-44 animate-pulse rounded-2xl bg-slate-200" key={number} />
+        <div className="h-11 animate-pulse border-b border-slate-100 bg-slate-50" key={number} />
       ))}
     </div>
   );

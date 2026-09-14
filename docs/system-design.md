@@ -147,7 +147,7 @@ persisted. No LLM is needed.
 
 - `GET /health` — service and database health.
 - `GET /v1/jobs` — paginated feed; filters: `q`, `location`, `remote`,
-  `posted_within_hours`, `listed_within_days`, `company`, and repeatable
+  `posted_within_hours`, `listed_within_hours`, `company`, and repeatable
   `sources` values such as `sources=simplify&sources=speedyapply`; optional
   `sort_by` (`listed_at` or `company_name`) and `sort_direction` (`asc` or
   `desc`) control ordering. Results default to newest listed first. The default
@@ -157,8 +157,8 @@ persisted. No LLM is needed.
 "Found by GradRadar" rather than implying it is the employer's published
 timestamp.
 
-`listed_within_days=1` includes both today and yesterday by calendar date, so
-the filter aligns with the listing-age labels shown in the feed.
+`listed_within_hours` filters by a rolling number of hours. The UI offers a
+48-hour option for roles listed yesterday as well as today.
 
 ### Initial UI
 

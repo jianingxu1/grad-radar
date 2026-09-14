@@ -29,10 +29,10 @@ export type JobFilters = {
   q: string;
   location: string;
   remote: "" | "true" | "false";
-  company: string;
-  postedWithinHours: string;
-  listedWithinDays: string;
+  listedWithinHours: string;
   sources: SourceName[];
+  sortBy: "company_name" | "listed_at";
+  sortDirection: "asc" | "desc";
   page: number;
 };
 
@@ -51,9 +51,9 @@ export function toSearchParams(filters: JobFilters): URLSearchParams {
     ["q", filters.q],
     ["location", filters.location],
     ["remote", filters.remote],
-    ["company", filters.company],
-    ["posted_within_hours", filters.postedWithinHours],
-    ["listed_within_days", filters.listedWithinDays],
+    ["listed_within_hours", filters.listedWithinHours],
+    ["sort_by", filters.sortBy],
+    ["sort_direction", filters.sortDirection],
   ];
   for (const [key, value] of scalarFilters) {
     if (value) params.set(key, value);
