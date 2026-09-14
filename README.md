@@ -8,8 +8,9 @@ matching application links, and presents a fresh public feed.
 The current product plan is in [docs/system-design.md](docs/system-design.md).
 The implementation sequence is in
 [docs/implementation-plan.md](docs/implementation-plan.md).
-The first implementation milestone is revision-aware source ingestion and
-idempotent PostgreSQL storage; the public API and website follow after that.
+The backend includes revision-aware source ingestion, idempotent PostgreSQL
+storage, a current-job listing endpoint, and a database-backed health check.
+The website follows after that.
 
 ## Local database
 
@@ -50,3 +51,5 @@ uv run uvicorn app.main:app --reload
 ```
 
 Open `http://127.0.0.1:8000/docs` for the API documentation.
+`GET /health` returns `{"status": "ok"}` only when the API can reach the
+database.
