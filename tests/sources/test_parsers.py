@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -27,6 +28,16 @@ def test_simplify_parser_selects_apply_link_and_us_row() -> None:
     assert result.postings[0].apply_url.startswith("https://autostore.wd3.myworkdayjobs.com")
     assert result.postings[1].apply_url.startswith("https://job-boards.greenhouse.io")
     assert result.ineligible == 1
+
+
+def test_parser_logs_ineligible_location(caplog: pytest.LogCaptureFixture) -> None:
+    fixture = Path(__file__).parents[1] / "fixtures" / "simplify_new_grad.md"
+
+    with caplog.at_level(logging.DEBUG, logger="app.sources.parsing"):
+        SimplifyParser().parse(fixture.read_text(), datetime(2026, 1, 3, tzinfo=UTC))
+
+    assert "ingestion.posting.ineligible source=simplify" in caplog.text
+    assert "location='Remote in Canada'" in caplog.text
 
 
 def test_parser_registry_resolves_known_sources() -> None:

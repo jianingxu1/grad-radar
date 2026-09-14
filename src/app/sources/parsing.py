@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
@@ -8,6 +9,8 @@ from app.domain.job_posting_normalization import normalize_apply_url, parse_trac
 from app.domain.location_eligibility import LocationEligibility, classify_us_location
 from app.models.parsed_job_posting import ParsedJobPosting
 from app.sources.definitions import SourceName
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -157,9 +160,23 @@ def _append(
     eligibility = classify_us_location(location)
     if eligibility is LocationEligibility.INELIGIBLE:
         result.ineligible += 1
+        logger.debug(
+            "ingestion.posting.ineligible source=%s company=%r title=%r location=%r",
+            source,
+            company,
+            title,
+            location,
+        )
         return
     if eligibility is LocationEligibility.UNKNOWN:
         result.unknown += 1
+        logger.debug(
+            "ingestion.posting.unknown_location source=%s company=%r title=%r location=%r",
+            source,
+            company,
+            title,
+            location,
+        )
         return
     try:
         result.postings.append(
