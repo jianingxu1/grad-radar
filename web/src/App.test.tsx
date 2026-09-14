@@ -1,6 +1,24 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const supabaseMock = vi.hoisted(() => {
+  const authStateListeners: Array<(event: string, session: unknown) => void> = [];
+  return {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      onAuthStateChange: vi.fn((callback: (event: string, session: unknown) => void) => {
+        authStateListeners.push(callback);
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      }),
+      signInWithIdToken: vi.fn().mockResolvedValue({ error: null }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
+    },
+    authStateListeners,
+  };
+});
+
+vi.mock("./supabase", () => ({ supabase: supabaseMock }));
+
 import { App } from "./App";
 
 const response = {
@@ -36,6 +54,8 @@ const response = {
 describe("App", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.clearAllMocks();
+    supabaseMock.authStateListeners.length = 0;
     window.history.replaceState({}, "", "/");
   });
 
@@ -157,5 +177,51 @@ describe("App", () => {
     expect(await screen.findByText("No jobs match these filters.")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("shows the signed-in account without the Google button", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    render(<App />);
+
+    const session = { user: { id: "user-1", email: "user@example.com" } };
+    await waitFor(() => expect(supabaseMock.authStateListeners).toHaveLength(1));
+    supabaseMock.authStateListeners[0]?.("SIGNED_IN", session);
+
+    expect(await screen.findByText("user@example.com")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeVisible();
+    expect(screen.queryByLabelText("Sign in with Google")).not.toBeInTheDocument();
+  });
+
+  it("clears an auth error after a successful sign-out", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    supabaseMock.auth.signOut.mockResolvedValueOnce({ error: new Error("sign-out failed") });
+    render(<App />);
+
+    await waitFor(() => expect(supabaseMock.authStateListeners).toHaveLength(1));
+    supabaseMock.authStateListeners[0]?.("SIGNED_IN", {
+      user: { id: "user-1", email: "user@example.com" },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Sign out" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("sign-out failed");
+
+    supabaseMock.auth.signOut.mockResolvedValueOnce({ error: null });
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+  });
+
+  it("explains when Google Identity Services fails to load", async () => {
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    document.head.append(script);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText("Sign in with Google")).toBeVisible());
+    script.dispatchEvent(new Event("error"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Google sign-in is unavailable. Refresh and try again.",
+    );
+    script.remove();
   });
 });

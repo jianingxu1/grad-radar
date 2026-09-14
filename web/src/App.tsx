@@ -59,23 +59,23 @@ export function App() {
   const [retry, setRetry] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [googleLoadError, setGoogleLoadError] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!supabase) return;
 
-    void supabase.auth.getUser().then(({ data, error: sessionError }) => {
-      // Supabase returns this when no browser session exists; that is the
-      // expected signed-out state, not an application error.
-      if (sessionError && sessionError.message !== "Auth session missing!") {
+    void supabase.auth.getSession().then(({ data, error: sessionError }) => {
+      if (sessionError) {
         setAuthError(sessionError.message);
         return;
       }
-      setUser(data.user);
+      setUser(data.session?.user ?? null);
     });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthError(null);
       if (session) googleButtonRef.current?.replaceChildren();
       setUser(session?.user ?? null);
     });
@@ -100,7 +100,11 @@ export function App() {
           void authClient.auth
             .signInWithIdToken({ provider: "google", token: response.credential, nonce: nonce.raw })
             .then(({ error: signInError }) => {
-              if (signInError) setAuthError(signInError.message);
+              if (signInError) {
+                setAuthError(signInError.message);
+              } else {
+                setAuthError(null);
+              }
             });
         },
       });
@@ -112,15 +116,19 @@ export function App() {
         shape: "rectangular",
         width: 220,
       });
+      setGoogleLoadError(false);
     }
 
     void renderGoogleButton();
     const script = document.querySelector<HTMLScriptElement>(
       'script[src="https://accounts.google.com/gsi/client"]',
     );
+    const handleScriptError = () => setGoogleLoadError(true);
+    script?.addEventListener("error", handleScriptError);
     script?.addEventListener("load", renderGoogleButton);
     return () => {
       cancelled = true;
+      script?.removeEventListener("error", handleScriptError);
       script?.removeEventListener("load", renderGoogleButton);
     };
   }, [user]);
@@ -206,7 +214,11 @@ export function App() {
   async function signOut(): Promise<void> {
     if (!supabase) return;
     const { error: signOutError } = await supabase.auth.signOut();
-    if (signOutError) setAuthError(signOutError.message);
+    if (signOutError) {
+      setAuthError(signOutError.message);
+    } else {
+      setAuthError(null);
+    }
   }
 
   if (path === "/faq") {
@@ -240,6 +252,10 @@ export function App() {
                   Sign out
                 </button>
               </div>
+            ) : googleLoadError ? (
+              <span className="text-sm text-red-700" role="alert">
+                Google sign-in is unavailable. Refresh and try again.
+              </span>
             ) : import.meta.env.VITE_GOOGLE_CLIENT_ID && supabase ? (
               <div aria-label="Sign in with Google" ref={googleButtonRef} />
             ) : (
