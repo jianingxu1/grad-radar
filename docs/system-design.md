@@ -146,8 +146,10 @@ persisted. No LLM is needed.
 
 - `GET /health` — service and database health.
 - `GET /v1/jobs` — paginated feed; filters: `q`, `location`, `remote`,
-  `posted_within_hours`, and `company`. Results are ordered by estimated
-  listing time, newest first.
+  `posted_within_hours`, `listed_within_days`, `company`, and repeatable
+  `sources` values such as `sources=simplify&sources=speedyapply`. Results are
+  ordered by estimated listing time, newest first. The default page is 50 jobs
+  at `offset=0` and includes all sources.
 
 `posted_within_hours` filters on `first_seen_at`; the UI should label it
 "Found by GradRadar" rather than implying it is the employer's published

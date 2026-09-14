@@ -27,7 +27,7 @@ architecture; this file tracks delivery progress.
 
 - [x] Add `GET /health` with a database check.
 - [x] Add `GET /v1/jobs` with pagination, search, company, location, remote,
-  and first-seen filters.
+  first-seen, listing-age, and source filters.
 - [x] Return only jobs present in at least one source's latest successful sync.
 - [x] Return the source-supplied application URL and tracker source for each
   job.
