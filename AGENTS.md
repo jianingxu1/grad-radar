@@ -1,5 +1,11 @@
 # GradRadar Contributor Guide
 
+## Project structure
+
+- `docs/` — product design and phased roadmap.
+
+Document every new top-level project folder in this section.
+
 ## Development environment
 
 - Use Python 3.13.
