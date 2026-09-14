@@ -85,7 +85,7 @@ describe("App", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("explains when sign-in has not been configured", async () => {
+  it("renders the configured Google sign-in control", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
     render(<App />);
 
@@ -222,6 +222,32 @@ describe("App", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Google sign-in is unavailable. Refresh and try again.",
     );
+    script.remove();
+  });
+
+  it("exchanges the Google credential with Supabase using a nonce", async () => {
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    document.head.append(script);
+    const initialize = vi.fn();
+    const renderButton = vi.fn();
+    vi.stubGlobal("google", { accounts: { id: { initialize, renderButton } } });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    render(<App />);
+
+    await waitFor(() => expect(initialize).toHaveBeenCalledOnce());
+    const configuration = initialize.mock.calls[0]?.[0];
+    expect(configuration.client_id).toMatch(/\.apps\.googleusercontent\.com$/);
+    expect(configuration.nonce).toMatch(/^[0-9a-f]{64}$/);
+    configuration.callback({ credential: "google-id-token" });
+    await waitFor(() =>
+      expect(supabaseMock.auth.signInWithIdToken).toHaveBeenCalledWith({
+        provider: "google",
+        token: "google-id-token",
+        nonce: expect.any(String),
+      }),
+    );
+    expect(supabaseMock.auth.signInWithIdToken.mock.calls[0]?.[0].nonce).toHaveLength(44);
     script.remove();
   });
 });

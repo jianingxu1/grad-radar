@@ -65,20 +65,27 @@ export function App() {
   useEffect(() => {
     if (!supabase) return;
 
-    void supabase.auth.getSession().then(({ data, error: sessionError }) => {
-      if (sessionError) {
-        setAuthError(sessionError.message);
-        return;
-      }
-      setUser(data.session?.user ?? null);
-    });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuthError(null);
-      if (session) googleButtonRef.current?.replaceChildren();
+      if (session) {
+        setAuthError(null);
+        googleButtonRef.current?.replaceChildren();
+      }
       setUser(session?.user ?? null);
     });
+    void supabase.auth
+      .getSession()
+      .then(({ data, error: sessionError }) => {
+        if (sessionError) {
+          setAuthError(sessionError.message);
+          return;
+        }
+        setUser(data.session?.user ?? null);
+      })
+      .catch((reason: unknown) => {
+        setAuthError(reason instanceof Error ? reason.message : "Could not restore auth session");
+      });
     return () => subscription.unsubscribe();
   }, []);
 
@@ -88,46 +95,66 @@ export function App() {
     const authClient = supabase;
 
     let cancelled = false;
+    let loadTimeout: ReturnType<typeof setTimeout> | undefined;
     async function renderGoogleButton(): Promise<void> {
       if (!window.google || cancelled || !googleButtonRef.current) return;
-      const nonce = await createNonce();
-      if (cancelled || !googleButtonRef.current) return;
+      try {
+        const nonce = await createNonce();
+        if (cancelled || !googleButtonRef.current) return;
 
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        nonce: nonce.hashed,
-        callback: (response) => {
-          void authClient.auth
-            .signInWithIdToken({ provider: "google", token: response.credential, nonce: nonce.raw })
-            .then(({ error: signInError }) => {
-              if (signInError) {
-                setAuthError(signInError.message);
-              } else {
-                setAuthError(null);
-              }
-            });
-        },
-      });
-      googleButtonRef.current.replaceChildren();
-      window.google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: "outline",
-        size: "large",
-        text: "sign_in",
-        shape: "rectangular",
-        width: 220,
-      });
-      setGoogleLoadError(false);
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          nonce: nonce.hashed,
+          callback: (response) => {
+            void authClient.auth
+              .signInWithIdToken({
+                provider: "google",
+                token: response.credential,
+                nonce: nonce.raw,
+              })
+              .then(({ error: signInError }) => {
+                if (signInError) {
+                  setAuthError(signInError.message);
+                } else {
+                  setAuthError(null);
+                }
+              })
+              .catch((reason: unknown) => {
+                setAuthError(reason instanceof Error ? reason.message : "Google sign-in failed");
+              });
+          },
+        });
+        googleButtonRef.current.replaceChildren();
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: "outline",
+          size: "large",
+          text: "sign_in",
+          shape: "rectangular",
+          width: 220,
+        });
+        setGoogleLoadError(false);
+      } catch (reason: unknown) {
+        setGoogleLoadError(true);
+        setAuthError(reason instanceof Error ? reason.message : "Google sign-in failed");
+      }
     }
 
-    void renderGoogleButton();
     const script = document.querySelector<HTMLScriptElement>(
       'script[src="https://accounts.google.com/gsi/client"]',
     );
     const handleScriptError = () => setGoogleLoadError(true);
     script?.addEventListener("error", handleScriptError);
     script?.addEventListener("load", renderGoogleButton);
+    if (window.google) {
+      void renderGoogleButton();
+    } else {
+      loadTimeout = setTimeout(() => {
+        if (!cancelled && !window.google) setGoogleLoadError(true);
+      }, 10000);
+    }
     return () => {
       cancelled = true;
+      if (loadTimeout) clearTimeout(loadTimeout);
       script?.removeEventListener("error", handleScriptError);
       script?.removeEventListener("load", renderGoogleButton);
     };
@@ -213,11 +240,15 @@ export function App() {
 
   async function signOut(): Promise<void> {
     if (!supabase) return;
-    const { error: signOutError } = await supabase.auth.signOut();
-    if (signOutError) {
-      setAuthError(signOutError.message);
-    } else {
-      setAuthError(null);
+    try {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        setAuthError(signOutError.message);
+      } else {
+        setAuthError(null);
+      }
+    } catch (reason: unknown) {
+      setAuthError(reason instanceof Error ? reason.message : "Sign-out failed");
     }
   }
 
