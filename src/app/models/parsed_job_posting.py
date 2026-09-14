@@ -13,6 +13,7 @@ class ParsedJobPosting(BaseModel):
     application_key: str
     location: str
     listed_at: datetime | None
+    source_position: int
 
     @field_validator("company_name", "title", "application_key", "location")
     @classmethod
@@ -34,4 +35,11 @@ class ParsedJobPosting(BaseModel):
             value.tzinfo is None or value.utcoffset() != UTC.utcoffset(value)
         ):
             raise ValueError("listed_at must be UTC")
+        return value
+
+    @field_validator("source_position")
+    @classmethod
+    def require_nonnegative_source_position(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("source_position must not be negative")
         return value

@@ -1,10 +1,11 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy import event, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.database.models import JobPostingSource, Source
+from app.database.models import JobPosting, JobPostingSource, Source
 from app.main import create_app
 from app.models.parsed_job_posting import ParsedJobPosting
 from app.repositories.job_postings import persist_posting
@@ -18,6 +19,7 @@ def _posting(
     location: str,
     listed_at: datetime | None,
     title: str = "Software Engineer, New Grad",
+    source_position: int = 0,
 ) -> ParsedJobPosting:
     return ParsedJobPosting(
         source_name=SourceName.SIMPLIFY,
@@ -27,6 +29,7 @@ def _posting(
         application_key=application_key,
         location=location,
         listed_at=listed_at,
+        source_position=source_position,
     )
 
 
@@ -143,6 +146,14 @@ def test_jobs_api_filters_paginates_and_returns_listing_attributes(
     assert [job["id"] for job in client.get("/v1/jobs?offset=1&limit=1").json()["items"]] == [
         str(recent.id)
     ]
+    assert [
+        job["id"]
+        for job in client.get("/v1/jobs?sort_by=company_name&sort_direction=asc").json()["items"]
+    ] == [str(newest.id), str(older.id), str(recent.id)]
+    assert [
+        job["id"]
+        for job in client.get("/v1/jobs?sort_by=listed_at&sort_direction=asc").json()["items"]
+    ] == [str(older.id), str(recent.id), str(newest.id)]
 
 
 def test_jobs_api_filters_current_jobs_by_source(
@@ -166,6 +177,7 @@ def test_jobs_api_filters_current_jobs_by_source(
                 application_key="https://jobs.example.com/speedyapply",
                 location="New York, NY",
                 listed_at=now - timedelta(minutes=1),
+                source_position=0,
             ),
             now,
         )
@@ -181,6 +193,33 @@ def test_jobs_api_filters_current_jobs_by_source(
         job["id"]
         for job in client.get("/v1/jobs?sources=simplify&sources=speedyapply").json()["items"]
     ] == [str(simplify.id), str(speedyapply.id)]
+
+
+def test_jobs_api_listing_age_filter_includes_yesterday(
+    session_factory: sessionmaker[Session],
+) -> None:
+    now = datetime.now(UTC)
+    yesterday_start = datetime.combine(now.date() - timedelta(days=1), time.min, UTC)
+    with session_factory.begin() as session:
+        bootstrap_sources(session)
+        today = persist_posting(
+            session,
+            _posting("https://jobs.example.com/today", "Today", "Boston, MA", now),
+            now,
+        )
+        yesterday = persist_posting(
+            session,
+            _posting(
+                "https://jobs.example.com/yesterday", "Yesterday", "Boston, MA", yesterday_start
+            ),
+            now,
+        )
+        _mark_source_current(session, SourceName.SIMPLIFY, now)
+
+    response = TestClient(create_app(session_factory)).get("/v1/jobs?listed_within_days=1")
+
+    assert response.status_code == 200
+    assert [job["id"] for job in response.json()["items"]] == [str(today.id), str(yesterday.id)]
 
 
 def test_jobs_api_excludes_jobs_absent_from_all_sources(
@@ -207,6 +246,61 @@ def test_jobs_api_excludes_jobs_absent_from_all_sources(
 
     assert response.status_code == 200
     assert [job["id"] for job in response.json()["items"]] == [str(current.id)]
+
+
+def test_jobs_api_keeps_source_row_order_for_matching_listing_dates(
+    session_factory: sessionmaker[Session],
+) -> None:
+    listed_at = datetime(2026, 1, 1, tzinfo=UTC)
+    first_seen_at = datetime(2026, 1, 2, tzinfo=UTC)
+    first_id = UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
+    second_id = UUID("00000000-0000-0000-0000-000000000000")
+    with session_factory.begin() as session:
+        bootstrap_sources(session)
+        simplify = session.scalar(select(Source).where(Source.name == SourceName.SIMPLIFY))
+        assert simplify is not None
+        simplify.last_successful_sync_at = first_seen_at
+        session.add_all(
+            [
+                JobPosting(
+                    id=first_id,
+                    application_key="first",
+                    company_name="First source row",
+                    title="Software Engineer, New Grad",
+                    apply_url="https://jobs.example.com/first",
+                    location="Boston, MA",
+                    listed_at=listed_at,
+                    first_seen_at=first_seen_at,
+                ),
+                JobPosting(
+                    id=second_id,
+                    application_key="second",
+                    company_name="Second source row",
+                    title="Software Engineer, New Grad",
+                    apply_url="https://jobs.example.com/second",
+                    location="Boston, MA",
+                    listed_at=listed_at,
+                    first_seen_at=first_seen_at,
+                ),
+                JobPostingSource(
+                    job_posting_id=first_id,
+                    source_id=simplify.id,
+                    last_seen_at=first_seen_at,
+                    source_position=0,
+                ),
+                JobPostingSource(
+                    job_posting_id=second_id,
+                    source_id=simplify.id,
+                    last_seen_at=first_seen_at,
+                    source_position=1,
+                ),
+            ]
+        )
+
+    response = TestClient(create_app(session_factory)).get("/v1/jobs")
+
+    assert response.status_code == 200
+    assert [job["id"] for job in response.json()["items"]] == [str(first_id), str(second_id)]
 
 
 def test_health_endpoint(session_factory: sessionmaker[Session]) -> None:
@@ -247,6 +341,7 @@ def test_jobs_api_loads_provenance_and_metadata_in_batched_queries(
                 application_key="https://jobs.example.com/1",
                 location="Remote, USA",
                 listed_at=now,
+                source_position=0,
             ),
             now,
         )

@@ -5,6 +5,7 @@ from time import perf_counter
 from typing import Any
 
 import httpx
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 from tenacity import (
     before_sleep_log,
@@ -14,7 +15,7 @@ from tenacity import (
     wait_random_exponential,
 )
 
-from app.database.models import Source
+from app.database.models import JobPostingSource, Source
 from app.repositories.job_postings import persist_postings
 from app.sources.bootstrap import bootstrap_sources
 from app.sources.definitions import SOURCES, SourceDefinition
@@ -76,7 +77,15 @@ def ingest_source(
         with session_factory.begin() as session:
             bootstrap_sources(session)
             source = session.query(Source).filter_by(name=definition.name).one()
-            if source.last_processed_revision_sha == sha:
+            needs_position_backfill = session.scalar(
+                select(JobPostingSource.job_posting_id)
+                .where(
+                    JobPostingSource.source_id == source.id,
+                    JobPostingSource.source_position.is_(None),
+                )
+                .limit(1)
+            )
+            if source.last_processed_revision_sha == sha and needs_position_backfill is None:
                 duration_ms = _duration_ms(started_at)
                 logger.info(
                     "ingestion.source.unchanged source=%s sha=%s duration_ms=%s",

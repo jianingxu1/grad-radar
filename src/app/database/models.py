@@ -42,3 +42,4 @@ class JobPostingSource(Base):
         ForeignKey("sources.id", ondelete="RESTRICT"), primary_key=True
     )
     last_seen_at: Mapped[datetime]
+    source_position: Mapped[int | None]

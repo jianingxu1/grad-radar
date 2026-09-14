@@ -95,6 +95,7 @@ def persist_postings(
             "job_posting_id": jobs_by_key[posting.application_key].id,
             "source_id": sources[str(posting.source_name)].id,
             "last_seen_at": seen_at,
+            "source_position": posting.source_position,
         }
         for posting in unique_postings.values()
     ]
@@ -102,7 +103,10 @@ def persist_postings(
     session.execute(
         link_insert.on_conflict_do_update(
             index_elements=[JobPostingSource.job_posting_id, JobPostingSource.source_id],
-            set_={"last_seen_at": link_insert.excluded.last_seen_at},
+            set_={
+                "last_seen_at": link_insert.excluded.last_seen_at,
+                "source_position": link_insert.excluded.source_position,
+            },
         )
     )
 

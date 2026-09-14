@@ -56,6 +56,7 @@ def _parse_speedyapply(text: str, revision_at: datetime) -> ParseResult:
     in_target_section = False
     found_target_section = False
     headers: dict[str, int] | None = None
+    source_position = 0
     for line in text.splitlines():
         if line.startswith("## "):
             in_target_section = heading in line
@@ -83,6 +84,7 @@ def _parse_speedyapply(text: str, revision_at: datetime) -> ParseResult:
             continue
         if len(cells) < len(headers):
             result.malformed += 1
+            source_position += 1
             continue
         result.parsed += 1
         posting_cell = cells[headers["posting"]]
@@ -95,7 +97,9 @@ def _parse_speedyapply(text: str, revision_at: datetime) -> ParseResult:
             cells[headers["age"]],
             revision_at,
             _first_url(posting_cell),
+            source_position,
         )
+        source_position += 1
     if not found_target_section:
         raise ValueError("missing SpeedyApply new-grad heading")
     return result
@@ -113,7 +117,7 @@ def _parse_simplify(text: str, revision_at: datetime) -> ParseResult:
     if table is None:
         raise ValueError("missing Simplify roles table")
     result, previous_company = ParseResult([]), None
-    for row in table.find_all("tr")[1:]:
+    for source_position, row in enumerate(table.find_all("tr")[1:]):
         cells = row.find_all(["td", "th"])
         if len(cells) < 5:
             continue
@@ -139,6 +143,7 @@ def _parse_simplify(text: str, revision_at: datetime) -> ParseResult:
             values[4],
             revision_at,
             str(anchor["href"]),
+            source_position,
         )
     return result
 
@@ -152,6 +157,7 @@ def _append(
     age: str,
     revision_at: datetime,
     url: str | None = None,
+    source_position: int = 0,
 ) -> None:
     url = url or _first_url(title)
     if url is None:
@@ -188,6 +194,7 @@ def _append(
                 application_key=normalize_apply_url(url),
                 location=location,
                 listed_at=parse_tracker_age(age, revision_at),
+                source_position=source_position,
             )
         )
     except ValueError:

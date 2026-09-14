@@ -112,7 +112,7 @@ lookalikes visible rather than accidentally hiding a real role.
 | --- | --- | --- |
 | `sources` | `id`, name, repository URL, last processed SHA, last successful sync | The two GitHub tracker files. |
 | `job_postings` | normalized apply URL, title, company, location, estimated listing date, first seen | Normalized job state. |
-| `job_posting_sources` | job, source, last seen | Links a job to the trackers that have listed it. |
+| `job_posting_sources` | job, source, last seen, source position | Links a job to the trackers that have listed it and preserves its row order within each tracker. |
 
 `job_postings.location` retains the source text as one opaque string. A job is
 current when at least one `job_posting_sources.last_seen_at` matches its
@@ -148,13 +148,17 @@ persisted. No LLM is needed.
 - `GET /health` — service and database health.
 - `GET /v1/jobs` — paginated feed; filters: `q`, `location`, `remote`,
   `posted_within_hours`, `listed_within_days`, `company`, and repeatable
-  `sources` values such as `sources=simplify&sources=speedyapply`. Results are
-  ordered by estimated listing time, newest first. The default page is 50 jobs
-  at `offset=0` and includes all sources.
+  `sources` values such as `sources=simplify&sources=speedyapply`; optional
+  `sort_by` (`listed_at` or `company_name`) and `sort_direction` (`asc` or
+  `desc`) control ordering. Results default to newest listed first. The default
+  page is 50 jobs at `offset=0` and includes all sources.
 
 `posted_within_hours` filters on `first_seen_at`; the UI should label it
 "Found by GradRadar" rather than implying it is the employer's published
 timestamp.
+
+`listed_within_days=1` includes both today and yesterday by calendar date, so
+the filter aligns with the listing-age labels shown in the feed.
 
 ### Initial UI
 

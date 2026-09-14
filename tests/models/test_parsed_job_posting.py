@@ -15,6 +15,7 @@ def test_parsed_posting_accepts_shared_contract() -> None:
         application_key="https://example.com/job",
         location="USA",
         listed_at=datetime.now(UTC),
+        source_position=0,
     )
     assert posting.source_name == SourceName.SIMPLIFY
 
@@ -29,4 +30,5 @@ def test_parsed_posting_rejects_non_utc_listing_time_and_preserves_url() -> None
             application_key="key",
             location="USA",
             listed_at=datetime(2026, 1, 1, tzinfo=timezone(timedelta(hours=1))),
+            source_position=0,
         )

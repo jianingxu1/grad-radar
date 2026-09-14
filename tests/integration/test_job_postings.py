@@ -21,6 +21,7 @@ def _posting(
         application_key=f"https://jobs.example.com/postings/{posting_id}",
         location="San Francisco, CA",
         listed_at=datetime(2026, 1, 1, tzinfo=UTC),
+        source_position=0,
     )
 
 
@@ -49,6 +50,7 @@ def test_persistence_deduplicates_sources_and_keeps_higher_priority_display_fiel
         assert job.first_seen_at == first_seen
         assert session.scalar(select(func.count()).select_from(JobPosting)) == 1
         assert session.scalar(select(func.count()).select_from(JobPostingSource)) == 2
+        assert {link.source_position for link in session.scalars(select(JobPostingSource))} == {0}
 
 
 def test_batch_persistence_deduplicates_keys_and_preserves_source_priority(

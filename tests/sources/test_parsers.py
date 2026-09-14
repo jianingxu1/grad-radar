@@ -18,6 +18,7 @@ def test_speedyapply_parser_maps_headers_and_posting_link() -> None:
         "Replit",
     ]
     assert [posting.source_name for posting in result.postings] == [SourceName.SPEEDYAPPLY] * 3
+    assert [posting.source_position for posting in result.postings] == [0, 1, 2]
 
 
 def test_simplify_parser_selects_apply_link_and_us_row() -> None:
@@ -28,6 +29,7 @@ def test_simplify_parser_selects_apply_link_and_us_row() -> None:
     assert result.postings[0].apply_url.startswith("https://autostore.wd3.myworkdayjobs.com")
     assert result.postings[1].apply_url.startswith("https://job-boards.greenhouse.io")
     assert result.ineligible == 1
+    assert [posting.source_position for posting in result.postings] == [0, 1]
 
 
 def test_parser_logs_ineligible_location(caplog: pytest.LogCaptureFixture) -> None:
