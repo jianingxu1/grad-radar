@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from app.domain.job_posting_normalization import normalize_apply_url, parse_tracker_age
 from app.domain.location_eligibility import LocationEligibility, classify_us_location
 from app.models.parsed_job_posting import ParsedJobPosting
+from app.sources.definitions import SourceName
 
 
 @dataclass
@@ -32,13 +33,13 @@ class SimplifyParser:
         return _parse_simplify(text, revision_at)
 
 
-PARSERS: dict[str, SourceParser] = {
-    "simplify": SimplifyParser(),
-    "speedyapply": SpeedyApplyParser(),
+PARSERS: dict[SourceName, SourceParser] = {
+    SourceName.SIMPLIFY: SimplifyParser(),
+    SourceName.SPEEDYAPPLY: SpeedyApplyParser(),
 }
 
 
-def get_parser(name: str) -> SourceParser:
+def get_parser(name: SourceName) -> SourceParser:
     try:
         return PARSERS[name]
     except KeyError as error:
@@ -78,7 +79,7 @@ def _parse_speedyapply(text: str, revision_at: datetime) -> ParseResult:
         posting_cell = cells[headers["posting"]]
         _append(
             result,
-            "speedyapply",
+            SourceName.SPEEDYAPPLY,
             cells[headers["company"]],
             cells[headers["position"]],
             cells[headers["location"]],
@@ -120,7 +121,7 @@ def _parse_simplify(text: str, revision_at: datetime) -> ParseResult:
         result.parsed += 1
         _append(
             result,
-            "simplify",
+            SourceName.SIMPLIFY,
             company,
             values[1],
             values[2],
@@ -133,7 +134,7 @@ def _parse_simplify(text: str, revision_at: datetime) -> ParseResult:
 
 def _append(
     result: ParseResult,
-    source: str,
+    source: SourceName,
     company: str,
     title: str,
     location: str,

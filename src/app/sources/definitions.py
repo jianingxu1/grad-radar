@@ -1,13 +1,19 @@
 from dataclasses import dataclass
+from enum import StrEnum
+
+
+class SourceName(StrEnum):
+    SIMPLIFY = "simplify"
+    SPEEDYAPPLY = "speedyapply"
 
 
 @dataclass(frozen=True)
 class SourceDefinition:
-    name: str
+    name: SourceName
     repository: str
     branch: str
     file_path: str
-    parser: str
+    parser: SourceName
     priority: int
 
     @property
@@ -17,14 +23,19 @@ class SourceDefinition:
 
 SOURCES = (
     SourceDefinition(
-        "simplify", "SimplifyJobs/New-Grad-Positions", "dev", "README.md", "simplify", 1
+        SourceName.SIMPLIFY,
+        "SimplifyJobs/New-Grad-Positions",
+        "dev",
+        "README.md",
+        SourceName.SIMPLIFY,
+        1,
     ),
     SourceDefinition(
-        "speedyapply",
+        SourceName.SPEEDYAPPLY,
         "speedyapply/2027-SWE-College-Jobs",
         "main",
         "NEW_GRAD_USA.md",
-        "speedyapply",
+        SourceName.SPEEDYAPPLY,
         2,
     ),
 )

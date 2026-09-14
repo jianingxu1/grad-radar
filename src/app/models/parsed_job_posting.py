@@ -2,9 +2,11 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, HttpUrl, field_validator
 
+from app.sources.definitions import SourceName
+
 
 class ParsedJobPosting(BaseModel):
-    source_name: str
+    source_name: SourceName
     company_name: str
     title: str
     apply_url: str
@@ -12,7 +14,7 @@ class ParsedJobPosting(BaseModel):
     location: str
     listed_at: datetime | None
 
-    @field_validator("source_name", "company_name", "title", "application_key", "location")
+    @field_validator("company_name", "title", "application_key", "location")
     @classmethod
     def require_text(cls, value: str) -> str:
         if not value.strip():

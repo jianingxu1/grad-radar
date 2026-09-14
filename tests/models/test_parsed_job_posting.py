@@ -3,11 +3,12 @@ from datetime import UTC, datetime, timedelta, timezone
 import pytest
 
 from app.models.parsed_job_posting import ParsedJobPosting
+from app.sources.definitions import SourceName
 
 
 def test_parsed_posting_accepts_shared_contract() -> None:
     posting = ParsedJobPosting(
-        source_name="simplify",
+        source_name=SourceName.SIMPLIFY,
         company_name="Acme",
         title="SWE",
         apply_url="https://example.com/job",
@@ -15,13 +16,13 @@ def test_parsed_posting_accepts_shared_contract() -> None:
         location="USA",
         listed_at=datetime.now(UTC),
     )
-    assert posting.source_name == "simplify"
+    assert posting.source_name == SourceName.SIMPLIFY
 
 
 def test_parsed_posting_rejects_non_utc_listing_time_and_preserves_url() -> None:
     with pytest.raises(ValueError):
         ParsedJobPosting(
-            source_name="simplify",
+            source_name=SourceName.SIMPLIFY,
             company_name="Acme",
             title="SWE",
             apply_url="https://EXAMPLE.com/job",

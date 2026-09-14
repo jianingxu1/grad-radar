@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from app.sources.definitions import SourceName
 from app.sources.parsing import SimplifyParser, SpeedyApplyParser, get_parser
 
 
@@ -38,10 +39,10 @@ def test_simplify_parser_selects_apply_link_and_us_row() -> None:
 
 
 def test_parser_registry_resolves_known_sources() -> None:
-    assert isinstance(get_parser("simplify"), SimplifyParser)
-    assert isinstance(get_parser("speedyapply"), SpeedyApplyParser)
+    assert isinstance(get_parser(SourceName.SIMPLIFY), SimplifyParser)
+    assert isinstance(get_parser(SourceName.SPEEDYAPPLY), SpeedyApplyParser)
 
 
 def test_parser_registry_rejects_unknown_source() -> None:
     with pytest.raises(ValueError, match="unsupported source parser"):
-        get_parser("unknown")
+        get_parser("unknown")  # type: ignore[arg-type]
