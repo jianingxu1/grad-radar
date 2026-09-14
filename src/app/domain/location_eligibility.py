@@ -11,6 +11,7 @@ class LocationEligibility(StrEnum):
 def classify_us_location(location: str) -> LocationEligibility:
     value = location.lower().strip()
     tokens = set(re.findall(r"[a-z]{2,}", value))
+    state_tokens = set(re.findall(r"(?:^|[,/])\s*([a-z]{2})\b", value))
     state_codes = {
         "al",
         "ak",
@@ -66,7 +67,7 @@ def classify_us_location(location: str) -> LocationEligibility:
     }
     us_phrases = ("usa", "united states", "new york", "san francisco", "los angeles")
     if (
-        tokens & state_codes
+        state_tokens & state_codes
         or tokens & {"nyc", "sf"}
         or any(phrase in value for phrase in us_phrases)
     ):

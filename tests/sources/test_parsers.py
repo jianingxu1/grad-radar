@@ -20,19 +20,12 @@ def test_speedyapply_parser_maps_headers_and_posting_link() -> None:
 
 
 def test_simplify_parser_selects_apply_link_and_us_row() -> None:
-    rows = [
-        "## 💻 Software Engineering New Grad Roles",
-        "<table><tr><th>Company</th><th>Role</th><th>Location</th><th>Application</th><th>Age</th></tr>",
-        "<tr><td>Acme</td><td>SWE</td><td>NYC, USA</td>"  # noqa: E501
-        '<td><a href="https://jobs.example.com/1"><img alt="Apply" /></a></td><td>2d</td></tr>',
-        "<tr><td>Else</td><td>SWE</td><td>Canada</td>"  # noqa: E501
-        '<td><a href="https://jobs.example.com/2"><img alt="Apply" /></a></td>'
-        "<td>2d</td></tr></table>",
-        "Inactive roles",
-    ]
-    text = "\n".join(rows)
-    result = SimplifyParser().parse(text, datetime(2026, 1, 3, tzinfo=UTC))
-    assert [posting.company_name for posting in result.postings] == ["Acme"]
+    fixture = Path(__file__).parents[1] / "fixtures" / "simplify_new_grad.md"
+    result = SimplifyParser().parse(fixture.read_text(), datetime(2026, 1, 3, tzinfo=UTC))
+
+    assert [posting.company_name for posting in result.postings] == ["Autostore", "Klaviyo"]
+    assert result.postings[0].apply_url.startswith("https://autostore.wd3.myworkdayjobs.com")
+    assert result.postings[1].apply_url.startswith("https://job-boards.greenhouse.io")
     assert result.ineligible == 1
 
 
