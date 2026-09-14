@@ -23,8 +23,28 @@ uv run pre-commit run --all-files
 
 ## Quality checks
 
-Before committing code, run Ruff, Pyright, and pytest. External HTTP calls in
-tests must be mocked with `respx` rather than calling live sources.
+Pre-commit automatically runs Ruff and Pyright for staged Python changes. Run
+`uv run pre-commit run --all-files` when validating the complete repository
+manually.
+
+Run `uv run pytest` after any feature, bug fix, refactor, test change, or
+dependency change that can affect application behavior, and before opening a
+pull request. Tests are not required for documentation-only changes.
+
+External HTTP calls in tests must be mocked with `respx` rather than calling
+live sources.
+
+## Testing and code quality
+
+- Every new feature and behavior-changing bug fix must include focused unit
+  tests. Update existing tests when changing established behavior.
+- Prefer small, single-purpose functions and modules with clear boundaries.
+- Use descriptive names and type annotations at public and external-data
+  boundaries.
+- Keep fetching and other side effects separate from normalization and business
+  logic so the latter stays straightforward to test.
+- Avoid premature abstractions and comments that merely restate the code.
+  Comments should explain non-obvious decisions and constraints.
 
 ## Commit conventions
 
