@@ -1,63 +1,39 @@
 # GradRadar
 
-**GradRadar is a focused job radar for U.S. entry-level software engineering
-roles.** It turns fast-moving community job trackers into one clean, searchable
-feed so new graduates can spend less time checking spreadsheets and more time
-applying to relevant roles.
+GradRadar helps U.S. new grads find software engineering roles early by putting new listings from multiple job trackers into one place.
 
-## Access
+[Live website](https://gradradar-web.vercel.app)
 
-- [Live product](https://gradradar-qikp9zcmp-jianingxu.vercel.app) *(currently protected by Vercel sign-in)*
-- [Source code](https://github.com/jianingxu1/grad-radar)
+<!-- Add docs/images/gradradar-feed.png here after the deployed feed has listings. -->
 
-## The problem
+## Why I built this
 
-New-grad SWE openings can appear and disappear quickly, while job seekers often
-have to search several large, frequently changing trackers to find them. That
-makes it easy to miss a role, revisit the same posting, or lose track of where
-an application link came from.
+As a CS student looking for new-grad positions, I kept hearing the same advice: apply early. Once a role has thousands of applications, getting an interview is already harder; applying late makes it even harder.
 
-GradRadar narrows that search to U.S. entry-level SWE roles and makes each
-listing easy to scan, filter, and open.
-
-## What it does
-
-- Shows a public feed of current U.S. entry-level software engineering jobs.
-- Lets candidates search by company or role and filter by location, remote
-  status, posting recency, and tracker source.
-- Preserves the application link and source for every job, so candidates can
-  quickly check the original listing before applying.
-- Shows when a source was last refreshed and when GradRadar first saw a role.
-
-GradRadar is built for bachelor’s and master’s new graduates looking for
-full-time SWE roles in the United States. It is a discovery tool: it does not
-submit applications or claim to verify employer listings.
-
-## How it works
-
-GradRadar checks two curated GitHub job trackers—
-[SpeedyApply](https://github.com/speedyapply/2027-SWE-College-Jobs) and
-[Simplify](https://github.com/SimplifyJobs/New-Grad-Positions)—on a schedule.
-When either tracker changes, the backend parses its job table, keeps eligible
-U.S. entry-level roles, normalizes application URLs, and deduplicates matching
-postings. The resulting records are stored in PostgreSQL and served to the web
-app through an API.
-
-```text
-GitHub trackers → parser and filters → URL deduplication → PostgreSQL → public job feed
-```
+I built GradRadar so I could check one place for new, deduplicated listings instead of manually refreshing several trackers. The goal is also to send alerts for new postings through Telegram, WhatsApp, and Discord, so candidates do not miss an opportunity because they saw it too late.
 
 ## Tech stack
 
 - **Frontend:** React, TypeScript, Vite, Tailwind CSS
-- **Backend:** Python 3.13, FastAPI, SQLAlchemy
-- **Data and scheduling:** PostgreSQL/Supabase, APScheduler
-- **Data ingestion:** GitHub API, HTTPX, Beautiful Soup
-- **Authentication:** Supabase Auth with Google sign-in
+- **Backend:** Python, FastAPI, SQLAlchemy, Pydantic
+- **Data and jobs:** PostgreSQL/Supabase, GitHub API, HTTPX, APScheduler
+- **Testing:** pytest, respx, Vitest, Testing Library
 
-## Project structure
+## What it does
 
-- `src/app/` — ingestion pipeline, API, scheduler, and database access
-- `web/` — React job-feed interface
-- `supabase/` — PostgreSQL schema migrations
-- `docs/` — system design and product decisions
+- Ingests new-grad SWE listings from the [SpeedyApply](https://github.com/speedyapply/2027-SWE-College-Jobs) and [Simplify](https://github.com/SimplifyJobs/New-Grad-Positions) GitHub trackers.
+- Keeps clearly U.S.-eligible roles, normalizes application URLs, and uses those URLs to deduplicate the same job across sources.
+- Stores the result and displays it in a searchable, filterable website with the original application link and tracker source.
+- Will let users opt in to alerts for new postings through Telegram first, then Discord and WhatsApp.
+
+## Roadmap
+
+- [x] Ingest the SpeedyApply and Simplify new-grad trackers.
+- [x] Filter clearly U.S.-eligible SWE roles and normalize application links.
+- [x] Deduplicate listings by normalized application URL while retaining their tracker source.
+- [x] Build a searchable, filterable web feed and a read-only API.
+- [x] Add optional Google sign-in.
+- [ ] Run the ingestion worker and database reliably in production, with health monitoring.
+- [ ] Build opt-in Telegram alerts, including preferences, unsubscribe, retries, and duplicate-safe delivery.
+- [ ] Add Discord and WhatsApp notification channels.
+- [ ] Ingest postings directly from ATS platforms such as Ashby and Greenhouse.
