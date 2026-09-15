@@ -270,6 +270,9 @@ describe("App", () => {
 
     render(<App />);
 
+    expect(screen.getByRole("heading", { level: 2, name: "Notifications" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Back to jobs" })).toBeVisible();
+    expect(screen.getByText(/Manage Telegram alerts/i)).toBeVisible();
     expect(await screen.findByText(/Telegram alerts are connected/i)).toBeVisible();
     expect(screen.getByRole("button", { name: "Stop notifications" })).toBeVisible();
   });

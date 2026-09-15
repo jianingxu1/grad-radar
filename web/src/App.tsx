@@ -590,11 +590,16 @@ function NotificationSettingsPage({
 
   return (
     <main className="flex min-h-screen flex-col bg-white text-slate-950">
-      <div className="mx-auto w-full max-w-2xl flex-1 px-5 py-8 sm:px-8">
-        <button className="button-secondary" onClick={() => onNavigate("/")}>
-          Back to jobs
-        </button>
-        <h1 className="mt-8 text-3xl font-semibold tracking-tight">Notifications</h1>
+      <div className="mx-auto w-full max-w-4xl flex-1 px-5 py-5 sm:px-8">
+        <PageHeader label="Notifications" onNavigate={onNavigate} />
+        <section aria-labelledby="notifications-heading">
+          <h2 className="text-3xl font-semibold tracking-tight" id="notifications-heading">
+            Notifications
+          </h2>
+          <p className="mt-3 max-w-2xl text-slate-600">
+            Manage Telegram alerts for newly discovered GradRadar jobs.
+          </p>
+        </section>
         {!user ? (
           <p className="mt-4 text-slate-600">Sign in to connect Telegram alerts.</p>
         ) : (
@@ -684,25 +689,38 @@ function NotificationState({
   );
 }
 
+function PageHeader({ label, onNavigate }: { label: string; onNavigate: (path: "/") => void }) {
+  return (
+    <header className="mb-10 flex items-baseline justify-between gap-4 border-b border-slate-200 pb-4">
+      <div className="flex items-center gap-3">
+        <button
+          aria-label="Go to GradRadar home"
+          className="flex items-center gap-3 bg-transparent p-0 text-left text-slate-950 shadow-none hover:bg-transparent"
+          type="button"
+          onClick={() => onNavigate("/")}
+        >
+          <img
+            alt=""
+            aria-hidden="true"
+            className="size-8 rounded-lg"
+            src="/gradradar-logo-512.png"
+          />
+          <h1 className="text-xl font-semibold tracking-tight">GradRadar</h1>
+        </button>
+        <p className="text-sm text-slate-500">{label}</p>
+      </div>
+      <button className="button-secondary" onClick={() => onNavigate("/")}>
+        Back to jobs
+      </button>
+    </header>
+  );
+}
+
 function FaqPage({ onNavigate }: { onNavigate: (path: "/") => void }) {
   return (
     <main className="flex min-h-screen flex-col bg-white text-slate-950">
       <div className="mx-auto w-full max-w-4xl flex-1 px-5 py-5 sm:px-8">
-        <header className="mb-10 flex items-baseline justify-between gap-4 border-b border-slate-200 pb-4">
-          <div className="flex items-center gap-3">
-            <img
-              alt=""
-              aria-hidden="true"
-              className="size-8 rounded-lg"
-              src="/gradradar-logo-512.png"
-            />
-            <h1 className="text-xl font-semibold tracking-tight">GradRadar</h1>
-            <p className="text-sm text-slate-500">Frequently asked questions</p>
-          </div>
-          <button className="button-secondary" onClick={() => onNavigate("/")}>
-            Back to jobs
-          </button>
-        </header>
+        <PageHeader label="Frequently asked questions" onNavigate={onNavigate} />
 
         <section aria-labelledby="faq-heading">
           <h2 className="text-3xl font-semibold tracking-tight" id="faq-heading">
