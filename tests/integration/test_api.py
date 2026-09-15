@@ -156,7 +156,7 @@ def test_jobs_api_filters_paginates_and_returns_listing_attributes(
     ] == [str(older.id), str(recent.id), str(newest.id)]
 
 
-def test_jobs_api_filters_current_jobs_by_source(
+def test_jobs_api_filters_discovered_jobs_by_source(
     session_factory: sessionmaker[Session],
 ) -> None:
     now = datetime.now(UTC)
@@ -222,7 +222,7 @@ def test_jobs_api_listing_age_filter_uses_hours(
     assert [job["id"] for job in response.json()["items"]] == [str(today.id), str(yesterday.id)]
 
 
-def test_jobs_api_excludes_jobs_absent_from_all_sources(
+def test_jobs_api_includes_jobs_absent_from_latest_tracker_snapshot(
     session_factory: sessionmaker[Session],
 ) -> None:
     now = datetime.now(UTC)
@@ -233,9 +233,14 @@ def test_jobs_api_excludes_jobs_absent_from_all_sources(
             _posting("https://jobs.example.com/current", "Current", "Boston, MA", now),
             now,
         )
-        persist_posting(
+        absent = persist_posting(
             session,
-            _posting("https://jobs.example.com/absent", "Absent", "Boston, MA", now),
+            _posting(
+                "https://jobs.example.com/absent",
+                "Absent",
+                "Boston, MA",
+                now - timedelta(minutes=1),
+            ),
             now - timedelta(days=1),
         )
         source = session.scalar(select(Source).where(Source.name == SourceName.SIMPLIFY))
@@ -245,7 +250,7 @@ def test_jobs_api_excludes_jobs_absent_from_all_sources(
     response = TestClient(create_app(session_factory)).get("/v1/jobs")
 
     assert response.status_code == 200
-    assert [job["id"] for job in response.json()["items"]] == [str(current.id)]
+    assert [job["id"] for job in response.json()["items"]] == [str(current.id), str(absent.id)]
 
 
 def test_jobs_api_keeps_source_row_order_for_matching_listing_dates(

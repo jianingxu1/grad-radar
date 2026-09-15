@@ -20,15 +20,15 @@ architecture; this file tracks delivery progress.
 - [x] Deduplicate by application key and retain source associations.
 - [x] Fetch GitHub revisions, skip unchanged sources, retry transient failures,
   and isolate a failing source.
-- [x] Retain historical jobs while deriving current jobs from the latest
-  successful source sync.
+- [x] Retain discovered jobs even if they later disappear from the source
+  tracker.
 
 ## Phase 2 — public API
 
 - [x] Add `GET /health` with a database check.
 - [x] Add `GET /v1/jobs` with pagination, search, company, location, remote,
   first-seen, listing-age, and source filters.
-- [x] Return only jobs present in at least one source's latest successful sync.
+- [x] Return discovered jobs that have at least one source association.
 - [x] Return the source-supplied application URL and tracker source for each
   job.
 

@@ -70,7 +70,7 @@ The registry has exactly two source files:
   `dev`, `README.md`, Software Engineering section only
 
 Each source has a GitHub repository, branch, file path, parser name, priority,
-last successfully processed SHA, and last successful sync time.
+last successfully processed SHA, and last successful check time.
 Fetch source metadata first; download and parse the raw file only when the SHA
 changes. This makes the scheduled run cheap and repeatable.
 
@@ -92,9 +92,8 @@ The parsers are intentionally separate because the formats differ:
   the run.
 - Treat a parse as successful only if the expected table is found and basic
   structure checks pass.
-- A job is current when at least one linked source saw it in that source's most
-  recent successful sync. Preserve historical jobs, but return only current
-  jobs from the public feed.
+- A job remains in the feed once discovered. `last_seen_at` records when a
+  source last listed it, but disappearance from the tracker does not hide it.
 
 ### Idempotency and deduplication
 
@@ -112,14 +111,14 @@ lookalikes visible rather than accidentally hiding a real role.
 
 | Table | Important fields | Purpose |
 | --- | --- | --- |
-| `sources` | `id`, name, repository URL, last processed SHA, last successful sync | The two GitHub tracker files. |
+| `sources` | `id`, name, repository URL, last processed SHA, last successful check | The two GitHub tracker files. |
 | `job_postings` | normalized apply URL, title, company, location, estimated listing date, first seen | Normalized job state. |
 | `job_posting_sources` | job, source, last seen, source position | Links a job to the trackers that have listed it and preserves its row order within each tracker. |
 
-`job_postings.location` retains the source text as one opaque string. A job is
-current when at least one `job_posting_sources.last_seen_at` matches its
-source's `last_successful_sync_at`; otherwise it is historical and omitted from
-the public feed.
+`job_postings.location` retains the source text as one opaque string. A job
+stays visible after discovery as long as it has at least one source link.
+`job_posting_sources.last_seen_at` remains provenance, not a feed visibility
+gate.
 
 The application URL is **source-supplied, not employer-verified**. The future
 UI must label the external button "Open application link" rather than claim it

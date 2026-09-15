@@ -64,16 +64,15 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         limit: Annotated[int, Query(ge=1, le=100)] = 50,
         session: Annotated[Session, Depends(get_session)],
     ) -> JobPageResponse:
-        current_source_link = (
+        source_link = (
             select(JobPostingSource.job_posting_id)
             .join(Source, JobPostingSource.source_id == Source.id)
             .where(
                 JobPostingSource.job_posting_id == JobPosting.id,
-                JobPostingSource.last_seen_at == Source.last_successful_sync_at,
             )
         )
         if sources:
-            current_source_link = current_source_link.where(Source.name.in_(sources))
+            source_link = source_link.where(Source.name.in_(sources))
         source_priority = case(
             {str(source.name): source.priority for source in SOURCES}, value=Source.name, else_=999
         )
@@ -82,7 +81,6 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
             .join(Source, JobPostingSource.source_id == Source.id)
             .where(
                 JobPostingSource.job_posting_id == JobPosting.id,
-                JobPostingSource.last_seen_at == Source.last_successful_sync_at,
             )
             .order_by(source_priority, JobPostingSource.source_position.asc().nulls_last())
             .limit(1)
@@ -93,7 +91,6 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
             .join(JobPostingSource, JobPostingSource.source_id == Source.id)
             .where(
                 JobPostingSource.job_posting_id == JobPosting.id,
-                JobPostingSource.last_seen_at == Source.last_successful_sync_at,
             )
             .order_by(source_priority, JobPostingSource.source_position.asc().nulls_last())
             .limit(1)
@@ -102,7 +99,7 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         if sources:
             source_position = source_position.where(Source.name.in_(sources))
             source_order = source_order.where(Source.name.in_(sources))
-        statement: Select[tuple[JobPosting]] = select(JobPosting).where(exists(current_source_link))
+        statement: Select[tuple[JobPosting]] = select(JobPosting).where(exists(source_link))
         if q:
             pattern = f"%{q.strip()}%"
             statement = statement.where(
