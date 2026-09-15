@@ -4,7 +4,7 @@ GradRadar helps U.S. new grads find software engineering roles early by putting 
 
 [Live website](https://gradradar-web.vercel.app)
 
-<!-- Add docs/images/gradradar-feed.png here after the deployed feed has listings. -->
+![GradRadar job feed](docs/images/gradradar-feed.png)
 
 ## Why I built this
 
@@ -18,29 +18,6 @@ I built GradRadar so I could check one place for new, deduplicated listings inst
 - **Backend:** Python, FastAPI, SQLAlchemy, Pydantic
 - **Data and jobs:** PostgreSQL/Supabase, GitHub API, HTTPX, APScheduler
 - **Testing:** pytest, respx, Vitest, Testing Library
-
-## Production configuration
-
-The API needs these Railway variables before the Vercel website can load the
-feed:
-
-- `DATABASE_URL`: the PostgreSQL connection string for the production database.
-- `FRONTEND_ORIGINS`: `https://gradradar-web.vercel.app` (add any preview or
-  custom domains as comma-separated origins).
-- `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and
-  `SUPABASE_JWT_AUDIENCE=authenticated`: validate private API requests. Use the
-  same publishable key configured as `VITE_SUPABASE_PUBLISHABLE_KEY`; it is
-  safe to expose and lets the API validate sessions from Supabase projects
-  using legacy HS256 signing keys.
-- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, and `TELEGRAM_WEBHOOK_SECRET`:
-  used by the API/worker for private connections and webhook verification.
-
-After changing either variable, redeploy the Railway service. Its `/health`
-endpoint must return `{"status":"ok"}` before the job feed can load.
-
-For Google sign-in, add `https://gradradar-web.vercel.app` to the OAuth
-client's Authorized JavaScript origins in Google Cloud Console, then redeploy
-Vercel if its `VITE_GOOGLE_CLIENT_ID` value changes.
 
 ## What it does
 
@@ -58,7 +35,7 @@ Vercel if its `VITE_GOOGLE_CLIENT_ID` value changes.
 - [x] Build a searchable, filterable web feed and a read-only API.
 - [x] Add optional Google sign-in.
 - [ ] Run the ingestion worker and database reliably in production, with health monitoring.
-- [x] Build opt-in Telegram alerts with connection confirmation, unsubscribe,
+- [ ] Build opt-in Telegram alerts with connection confirmation, unsubscribe,
   retries, and duplicate-safe outbox delivery.
 - [ ] Add other notification channels.
 - [ ] Ingest postings directly from ATS platforms such as Ashby and Greenhouse.
