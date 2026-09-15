@@ -264,7 +264,13 @@ export function App() {
     <main className="flex min-h-screen flex-col bg-white text-slate-950">
       <div className="mx-auto w-full max-w-[1800px] flex-1 px-5 py-5 sm:px-8">
         <header className="mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-slate-200 pb-4">
-          <div className="flex items-baseline gap-3">
+          <div className="flex items-center gap-3">
+            <img
+              alt=""
+              aria-hidden="true"
+              className="size-8 rounded-lg"
+              src="/gradradar-logo-512.png"
+            />
             <h1 className="text-xl font-semibold tracking-tight">GradRadar</h1>
             <p className="text-sm text-slate-500">U.S. entry-level software engineering jobs</p>
           </div>
@@ -505,7 +511,13 @@ function FaqPage({ onNavigate }: { onNavigate: (path: "/") => void }) {
     <main className="flex min-h-screen flex-col bg-white text-slate-950">
       <div className="mx-auto w-full max-w-4xl flex-1 px-5 py-5 sm:px-8">
         <header className="mb-10 flex items-baseline justify-between gap-4 border-b border-slate-200 pb-4">
-          <div className="flex items-baseline gap-3">
+          <div className="flex items-center gap-3">
+            <img
+              alt=""
+              aria-hidden="true"
+              className="size-8 rounded-lg"
+              src="/gradradar-logo-512.png"
+            />
             <h1 className="text-xl font-semibold tracking-tight">GradRadar</h1>
             <p className="text-sm text-slate-500">Frequently asked questions</p>
           </div>
