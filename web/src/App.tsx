@@ -277,7 +277,12 @@ export function App() {
     <main className="flex min-h-screen flex-col bg-white text-slate-950">
       <div className="mx-auto w-full max-w-[1800px] flex-1 px-5 py-5 sm:px-8">
         <header className="mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-slate-200 pb-4">
-          <div className="flex items-center gap-3">
+          <button
+            aria-label="Go to GradRadar home"
+            className="flex items-center gap-3 bg-transparent p-0 text-left text-slate-950 shadow-none hover:bg-transparent"
+            type="button"
+            onClick={() => navigate("/")}
+          >
             <img
               alt=""
               aria-hidden="true"
@@ -285,6 +290,8 @@ export function App() {
               src="/gradradar-logo-512.png"
             />
             <h1 className="text-xl font-semibold tracking-tight">GradRadar</h1>
+          </button>
+          <div className="flex items-center gap-3">
             <p className="text-sm text-slate-500">U.S. entry-level software engineering jobs</p>
           </div>
           <div className="flex items-center gap-4">

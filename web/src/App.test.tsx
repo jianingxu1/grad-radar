@@ -114,6 +114,18 @@ describe("App", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("navigates home when the GradRadar header logo is clicked", async () => {
+    window.history.replaceState({}, "", "/?page=2");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    render(<App />);
+
+    await screen.findByText("Platform Engineer, New Grad");
+    fireEvent.click(screen.getByRole("button", { name: "Go to GradRadar home" }));
+
+    expect(window.location.pathname).toBe("/");
+    expect(window.location.search).toBe("");
+  });
+
   it("renders the configured Google sign-in control", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
     render(<App />);
