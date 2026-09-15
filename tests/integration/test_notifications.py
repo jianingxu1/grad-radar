@@ -27,16 +27,42 @@ def test_disabled_connection_can_reconnect_with_the_same_private_chat(
     with session_factory.begin() as session:
         user_id = _create_auth_user(session)
         token, _ = create_link_intent(session, user_id, now)
-        assert consume_start(session, token, 101, 202, now)
+        assert consume_start(session, token, 101, 202, now) == "connected"
         assert disable_connection(session, user_id, now + timedelta(minutes=1))
         reconnect_token, _ = create_link_intent(session, user_id, now + timedelta(minutes=2))
-        assert consume_start(session, reconnect_token, 101, 202, now + timedelta(minutes=2))
+        assert (
+            consume_start(session, reconnect_token, 101, 202, now + timedelta(minutes=2))
+            == "connected"
+        )
 
     with session_factory() as session:
         connections = session.scalars(select(TelegramConnection)).all()
         assert len(connections) == 1
         assert connections[0].status == "active"
         assert connection_state(session, user_id, now)[0] == "connected"
+
+
+def test_start_link_reports_telegram_user_conflict_before_insert(
+    session_factory: sessionmaker[Session],
+) -> None:
+    now = datetime.now(UTC)
+    with session_factory.begin() as session:
+        first_user_id = _create_auth_user(session)
+        second_user_id = _create_auth_user(session)
+        session.add(
+            TelegramConnection(
+                user_id=first_user_id,
+                telegram_user_id=101,
+                telegram_chat_id=202,
+                status="active",
+                created_at=now,
+                activated_at=now,
+                disabled_at=None,
+                updated_at=now,
+            )
+        )
+        token, _ = create_link_intent(session, second_user_id, now)
+        assert consume_start(session, token, 101, 303, now) == "telegram_user_conflict"
 
 
 def test_enqueue_only_notifies_connections_active_before_each_job_is_seen(

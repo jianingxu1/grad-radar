@@ -3,6 +3,7 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta
+from typing import Literal
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -21,6 +22,15 @@ from app.services.telegram import TelegramClient, TelegramDelivery
 TOKEN_TTL = timedelta(minutes=10)
 TELEGRAM_MESSAGE_LIMIT = 4096
 _MAX_DISPLAY_FIELD_LENGTH = 512
+StartConsumeResult = Literal[
+    "connected",
+    "already_connected",
+    "expired_or_used",
+    "invalid",
+    "chat_conflict",
+    "telegram_user_conflict",
+    "user_conflict",
+]
 
 
 def create_link_intent(session: Session, user_id: UUID, now: datetime) -> tuple[str, datetime]:
@@ -77,37 +87,42 @@ def disable_connection(session: Session, user_id: UUID, now: datetime) -> bool:
 
 def consume_start(
     session: Session, token: str, telegram_user_id: int, telegram_chat_id: int, now: datetime
-) -> bool:
+) -> StartConsumeResult:
     if not token or len(token) > 64:
-        return False
+        return "invalid"
     intent = session.scalar(
         select(TelegramLinkIntent)
         .where(TelegramLinkIntent.token_hash == _token_hash(token))
         .with_for_update()
     )
     if not intent or intent.consumed_at or intent.expires_at <= now:
-        return False
+        return "expired_or_used"
     existing_chat = session.scalar(
         select(TelegramConnection).where(TelegramConnection.telegram_chat_id == telegram_chat_id)
     )
     existing_user = session.scalar(
         select(TelegramConnection).where(TelegramConnection.user_id == intent.user_id)
     )
+    existing_telegram_user = session.scalar(
+        select(TelegramConnection).where(TelegramConnection.telegram_user_id == telegram_user_id)
+    )
     if existing_chat and existing_chat is not existing_user:
-        return False
+        return "chat_conflict"
+    if existing_telegram_user and existing_telegram_user is not existing_user:
+        return "telegram_user_conflict"
     connection = existing_user or existing_chat
     if connection:
         if connection.user_id != intent.user_id or connection.telegram_user_id != telegram_user_id:
-            return False
+            return "user_conflict"
         if connection.status == "active":
-            return False
+            return "already_connected"
         connection.telegram_chat_id = telegram_chat_id
         connection.status = "active"
         connection.activated_at = now
         connection.disabled_at = None
         connection.updated_at = now
         intent.consumed_at = now
-        return True
+        return "connected"
     intent.consumed_at = now
     session.add(
         TelegramConnection(
@@ -120,7 +135,7 @@ def consume_start(
             updated_at=now,
         )
     )
-    return True
+    return "connected"
 
 
 def enqueue_new_jobs(session: Session, job_ids: list[UUID], cycle_at: datetime) -> int:

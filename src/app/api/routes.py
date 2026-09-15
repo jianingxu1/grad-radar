@@ -211,16 +211,12 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         now = datetime.now(UTC)
         with session.begin():
             if text.startswith("/start "):
-                reply = (
-                    "Telegram alerts connected."
-                    if consume_start(
-                        session, text.split(maxsplit=1)[1], sender["id"], chat["id"], now
-                    )
-                    else (
-                        "That connection link is invalid or has expired. "
-                        "Create a new link on GradRadar."
-                    )
+                result = consume_start(
+                    session, text.split(maxsplit=1)[1], sender["id"], chat["id"], now
                 )
+                reply = _telegram_start_reply(result)
+            elif text.startswith("/start"):
+                reply = "Open GradRadar notification settings and use Connect Telegram first."
             elif text.startswith("/stop"):
                 connection = session.scalar(
                     select(TelegramConnection).where(
@@ -238,6 +234,22 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         return {"ok": True}
 
     return router
+
+
+def _telegram_start_reply(result: str) -> str:
+    if result == "connected":
+        return "Telegram alerts connected."
+    if result == "already_connected":
+        return "Telegram alerts are already connected."
+    if result == "chat_conflict":
+        return "This Telegram chat is already linked to another GradRadar account."
+    if result == "telegram_user_conflict":
+        return "This Telegram account is already linked to another GradRadar account."
+    if result == "user_conflict":
+        return "This GradRadar account is linked to a different Telegram account."
+    if result == "invalid":
+        return "That connection link is invalid. Create a new link on GradRadar."
+    return "That connection link has expired or was already used. Create a new link on GradRadar."
 
 
 def _sources_by_job(session: Session, job_ids: list[UUID]) -> dict[UUID, list[SourceResponse]]:
