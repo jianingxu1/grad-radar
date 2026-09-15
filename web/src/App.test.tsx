@@ -147,8 +147,10 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByLabelText("Page 2 of 2");
-    fireEvent.change(screen.getByLabelText("Location"), { target: { value: "Boston" } });
-    await waitFor(() => expect(window.location.search).toContain("location=Boston"));
+    expect(screen.queryByLabelText("Location")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Workplace")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "platform" } });
+    await waitFor(() => expect(window.location.search).toContain("q=platform"));
     expect(window.location.search).not.toContain("page=");
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await waitFor(() => expect(window.location.search).toContain("page=2"));

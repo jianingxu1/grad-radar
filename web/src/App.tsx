@@ -308,32 +308,13 @@ export function App() {
         )}
 
         <section aria-label="Feed filters" className="mb-3 border-b border-slate-200 pb-3">
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1.4fr_1fr_0.8fr_0.8fr_1.2fr]">
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1.4fr_0.8fr_1.2fr]">
             <Field label="Search">
               <input
                 value={filters.q}
                 onChange={(event) => changeFilters({ q: event.target.value })}
                 placeholder="Company or role"
               />
-            </Field>
-            <Field label="Location">
-              <input
-                value={filters.location}
-                onChange={(event) => changeFilters({ location: event.target.value })}
-                placeholder="e.g. New York"
-              />
-            </Field>
-            <Field label="Workplace">
-              <select
-                value={filters.remote}
-                onChange={(event) =>
-                  changeFilters({ remote: event.target.value as JobFilters["remote"] })
-                }
-              >
-                <option value="">All locations</option>
-                <option value="true">Remote</option>
-                <option value="false">On-site or hybrid</option>
-              </select>
             </Field>
             <Field label="Listed within">
               <select

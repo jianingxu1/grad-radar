@@ -7,8 +7,6 @@ describe("job feed query state", () => {
   it("serializes API filters with repeated source parameters and an offset", () => {
     const params = toSearchParams({
       q: "platform",
-      location: "New York",
-      remote: "true",
       listedWithinHours: "168",
       sources: ["simplify", "speedyapply"],
       sortBy: "company_name",
@@ -24,12 +22,11 @@ describe("job feed query state", () => {
 
   it("hydrates shareable filters and omits the first page from the URL", () => {
     const filters = filtersFromSearch(
-      "?q=platform&remote=false&sources=simplify&sort_by=company_name&sort_direction=asc&page=3",
+      "?q=platform&sources=simplify&sort_by=company_name&sort_direction=asc&page=3",
     );
 
     expect(filters).toMatchObject({
       q: "platform",
-      remote: "false",
       sources: ["simplify"],
       sortBy: "company_name",
       sortDirection: "asc",

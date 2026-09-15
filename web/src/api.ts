@@ -27,8 +27,6 @@ export type JobPage = {
 
 export type JobFilters = {
   q: string;
-  location: string;
-  remote: "" | "true" | "false";
   listedWithinHours: string;
   sources: SourceName[];
   sortBy: "company_name" | "listed_at";
@@ -49,8 +47,6 @@ export function toSearchParams(filters: JobFilters): URLSearchParams {
   });
   const scalarFilters: Array<[string, string]> = [
     ["q", filters.q],
-    ["location", filters.location],
-    ["remote", filters.remote],
     ["listed_within_hours", filters.listedWithinHours],
     ["sort_by", filters.sortBy],
     ["sort_direction", filters.sortDirection],

@@ -4,8 +4,6 @@ const sourceNames: SourceName[] = ["simplify", "speedyapply"];
 
 export const defaultFilters: JobFilters = {
   q: "",
-  location: "",
-  remote: "",
   listedWithinHours: "",
   sources: [],
   sortBy: "listed_at",
@@ -24,13 +22,10 @@ function positiveIntegerString(value: string | null): string {
 
 export function filtersFromSearch(search: string): JobFilters {
   const params = new URLSearchParams(search);
-  const remote = params.get("remote");
   const sortBy = params.get("sort_by");
   const sortDirection = params.get("sort_direction");
   return {
     q: params.get("q") ?? "",
-    location: params.get("location") ?? "",
-    remote: remote === "true" || remote === "false" ? remote : "",
     listedWithinHours: positiveIntegerString(params.get("listed_within_hours")),
     sources: params
       .getAll("sources")
@@ -45,8 +40,6 @@ export function filtersToSearch(filters: JobFilters): string {
   const params = new URLSearchParams();
   const values: Array<[string, string]> = [
     ["q", filters.q],
-    ["location", filters.location],
-    ["remote", filters.remote],
     ["listed_within_hours", filters.listedWithinHours],
     ["sort_by", filters.sortBy],
     ["sort_direction", filters.sortDirection],
