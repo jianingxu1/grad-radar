@@ -67,7 +67,10 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Platform Engineer, New Grad")).toBeVisible();
-    expect(screen.getByText(/Tracker freshness:/)).toBeVisible();
+    const freshness = screen.getByLabelText("Tracker freshness");
+    expect(freshness).toHaveTextContent("Tracker freshness:");
+    expect(freshness).toHaveTextContent(/Simplify: Sep 14, 2026/);
+    expect(freshness).toHaveTextContent(/SpeedyApply: not checked yet/);
     const applicationLink = screen.getByRole("link", { name: /Open application link for Figma/ });
     expect(applicationLink).toHaveAttribute("target", "_blank");
     expect(applicationLink).toHaveAttribute("rel", "noreferrer");
@@ -274,7 +277,9 @@ describe("App", () => {
   it("shows connected notification controls for an active Telegram connection", async () => {
     window.history.replaceState({}, "", "/settings/notifications");
     supabaseMock.auth.getSession.mockResolvedValue({
-      data: { session: { user: { id: "user-1", email: "user@example.com" }, access_token: "token" } },
+      data: {
+        session: { user: { id: "user-1", email: "user@example.com" }, access_token: "token" },
+      },
       error: null,
     });
     vi.stubGlobal(

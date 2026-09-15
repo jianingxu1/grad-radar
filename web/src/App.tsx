@@ -755,8 +755,7 @@ function FaqPage({ onNavigate }: { onNavigate: (path: "/") => void }) {
             </FaqItem>
             <FaqItem question="What do “Listed” and tracker freshness mean?">
               “Listed” is the tracker&apos;s estimated posting age, not an employer-confirmed
-              publish time. Tracker freshness shows when GradRadar last successfully synced each
-              source.
+              publish time. Tracker freshness shows when GradRadar last checked each source.
             </FaqItem>
             <FaqItem question="Does GradRadar require an account or track my applications?">
               No. The current feed is public and read-only. It does not submit applications or track
@@ -856,7 +855,7 @@ function Freshness({ sources }: { sources: JobPage["source_freshness"] }) {
           {": "}
           {source.last_successful_sync_at
             ? formatDate(source.last_successful_sync_at)
-            : "not synced yet"}
+            : "not checked yet"}
         </span>
       ))}
     </aside>
