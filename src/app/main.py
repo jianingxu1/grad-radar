@@ -15,6 +15,16 @@ def create_app(session_factory: sessionmaker[Session] | None = None) -> FastAPI:
         allow_methods=["GET"],
         allow_headers=[],
     )
+
+    @app.get("/", tags=["service"])
+    def root() -> dict[str, str]:
+        return {
+            "name": "GradRadar API",
+            "docs_url": "/docs",
+            "health_url": "/health",
+            "jobs_url": "/v1/jobs",
+        }
+
     app.include_router(create_router(session_factory))
     return app
 

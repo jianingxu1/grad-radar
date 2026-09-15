@@ -310,6 +310,18 @@ def test_health_endpoint(session_factory: sessionmaker[Session]) -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_root_endpoint_introduces_the_api() -> None:
+    response = TestClient(create_app()).get("/")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "name": "GradRadar API",
+        "docs_url": "/docs",
+        "health_url": "/health",
+        "jobs_url": "/v1/jobs",
+    }
+
+
 def test_api_allows_configured_frontend_origin(session_factory: sessionmaker[Session]) -> None:
     response = TestClient(create_app(session_factory)).get(
         "/v1/jobs", headers={"Origin": "http://localhost:5173"}
