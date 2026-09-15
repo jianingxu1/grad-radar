@@ -76,7 +76,7 @@ def ingest_source(
             f"https://api.github.com/repos/{definition.repository}/commits",
             params={"sha": definition.branch, "path": definition.file_path, "per_page": 1},
         )
-        commit.raise_for_status()
+        checked_at = datetime.now(UTC)
         payload = commit.json()[0]
         sha = payload["sha"]
         revision_at = datetime.fromisoformat(
@@ -93,20 +93,24 @@ def ingest_source(
                 )
                 .limit(1)
             )
-            if source.last_processed_revision_sha == sha and needs_position_backfill is None:
-                duration_ms = _duration_ms(started_at)
-                logger.info(
-                    "ingestion.source.unchanged source=%s sha=%s duration_ms=%s",
-                    definition.name,
-                    sha,
-                    duration_ms,
-                )
-                return IngestionSummary(definition.name, "unchanged", sha, duration_ms=duration_ms)
+            unchanged = (
+                source.last_processed_revision_sha == sha and needs_position_backfill is None
+            )
+        if unchanged:
+            _mark_source_successfully_synced(session_factory, definition, checked_at)
+            duration_ms = _duration_ms(started_at)
+            logger.info(
+                "ingestion.source.unchanged source=%s sha=%s duration_ms=%s",
+                definition.name,
+                sha,
+                duration_ms,
+            )
+            return IngestionSummary(definition.name, "unchanged", sha, duration_ms=duration_ms)
         raw = _get(
             client,
             f"https://raw.githubusercontent.com/{definition.repository}/{sha}/{definition.file_path}",
         )
-        raw.raise_for_status()
+        checked_at = datetime.now(UTC)
         parsed: ParseResult = get_parser(definition.parser).parse(raw.text, revision_at)
         logger.info(
             "ingestion.source.parsed source=%s sha=%s parsed=%s eligible=%s "
@@ -121,12 +125,9 @@ def ingest_source(
         )
         with session_factory.begin() as session:
             source = session.query(Source).filter_by(name=definition.name).one()
-            synced_at = datetime.now(UTC)
-            _, new_job_ids = persist_postings_with_new_ids(session, parsed.postings, synced_at)
-            source.last_processed_revision_sha, source.last_successful_sync_at = (
-                sha,
-                synced_at,
-            )
+            _, new_job_ids = persist_postings_with_new_ids(session, parsed.postings, checked_at)
+            source.last_processed_revision_sha = sha
+        _mark_source_successfully_synced(session_factory, definition, checked_at)
         duration_ms = _duration_ms(started_at)
         summary = IngestionSummary(
             definition.name,
@@ -182,6 +183,14 @@ def _get(client: httpx.Client, url: str, **kwargs: Any) -> httpx.Response:
         )
     response.raise_for_status()
     return response
+
+
+def _mark_source_successfully_synced(
+    session_factory: sessionmaker[Session], definition: SourceDefinition, checked_at: datetime
+) -> None:
+    with session_factory.begin() as session:
+        source = session.query(Source).filter_by(name=definition.name).one()
+        source.last_successful_sync_at = checked_at
 
 
 def _duration_ms(started_at: float) -> int:
