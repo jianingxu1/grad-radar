@@ -1,10 +1,13 @@
-# GradRadar
-
-GradRadar helps U.S. new grads find software engineering roles early by putting new listings from multiple job trackers into one place.
-
-[Live website](https://gradradar-web.vercel.app)
-
-![GradRadar job feed](docs/images/gradradar-feed.png)
+<div align="center">
+  <h1>GradRadar</h1>
+  <p>
+    GradRadar helps U.S. new grads find software engineering roles early by bringing the newest listings from multiple job trackers into one place.
+  </p>
+  <img width="600" height="400" alt="GradRadar website" src="docs/images/gradradar-feed.png">
+  <p>
+    <a href="https://gradradar-web.vercel.app">Live website</a>  
+  </p>
+</div>
 
 ## Why I built this
 
