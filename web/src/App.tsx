@@ -337,7 +337,7 @@ export function App() {
         )}
 
         <section aria-label="Feed filters" className="mb-3 border-b border-slate-200 pb-3">
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1.4fr_0.8fr_1.2fr]">
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[0.35fr_0.2fr_1.75fr]">
             <Field label="Search">
               <input
                 value={filters.q}
