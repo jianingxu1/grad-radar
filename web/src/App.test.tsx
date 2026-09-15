@@ -134,6 +134,24 @@ describe("App", () => {
     expect(screen.getByLabelText("Sign in with Google")).toBeVisible();
   });
 
+  it("keeps the Google sign-in control after navigating from FAQ back to jobs", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    const renderButton = vi.fn((container: HTMLElement) => {
+      container.append(document.createElement("button"));
+    });
+    vi.stubGlobal("google", {
+      accounts: { id: { initialize: vi.fn(), renderButton } },
+    });
+    render(<App />);
+
+    await screen.findByText("Platform Engineer, New Grad");
+    fireEvent.click(screen.getByRole("button", { name: "FAQ" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to jobs" }));
+
+    await waitFor(() => expect(renderButton).toHaveBeenCalledTimes(2));
+    expect(screen.getByLabelText("Sign in with Google")).toBeVisible();
+  });
+
   it("renders source-supplied HTML in company names as plain text", async () => {
     vi.stubGlobal(
       "fetch",

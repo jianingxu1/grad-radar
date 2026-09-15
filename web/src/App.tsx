@@ -168,7 +168,7 @@ export function App() {
       script?.removeEventListener("error", handleScriptError);
       script?.removeEventListener("load", renderGoogleButton);
     };
-  }, [user]);
+  }, [path, user]);
 
   useEffect(() => {
     if (path === "/faq" || path === "/settings/notifications") return;
