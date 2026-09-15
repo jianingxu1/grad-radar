@@ -10,6 +10,7 @@ const supabaseMock = vi.hoisted(() => {
         authStateListeners.push(callback);
         return { data: { subscription: { unsubscribe: vi.fn() } } };
       }),
+      refreshSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
       signInWithIdToken: vi.fn().mockResolvedValue({ error: null }),
       signOut: vi.fn().mockResolvedValue({ error: null }),
     },
@@ -56,6 +57,7 @@ describe("App", () => {
     vi.unstubAllGlobals();
     vi.clearAllMocks();
     supabaseMock.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    supabaseMock.auth.refreshSession.mockResolvedValue({ data: { session: null }, error: null });
     supabaseMock.authStateListeners.length = 0;
     window.history.replaceState({}, "", "/");
   });
@@ -240,6 +242,32 @@ describe("App", () => {
 
     expect(await screen.findByText(/Telegram alerts are connected/i)).toBeVisible();
     expect(screen.getByRole("button", { name: "Stop notifications" })).toBeVisible();
+  });
+
+  it("refreshes an expired session before retrying notification settings", async () => {
+    window.history.replaceState({}, "", "/settings/notifications");
+    supabaseMock.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "user-1", email: "user@example.com" }, access_token: "old" } },
+      error: null,
+    });
+    supabaseMock.auth.refreshSession.mockResolvedValue({
+      data: { session: { access_token: "new" } },
+      error: null,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "not_connected", expires_at: null }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByRole("button", { name: "Connect Telegram" })).toBeVisible();
+    expect(supabaseMock.auth.refreshSession).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toMatchObject({ Authorization: "Bearer new" });
   });
 
   it("clears an auth error after a successful sign-out", async () => {

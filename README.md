@@ -27,7 +27,11 @@ feed:
 - `DATABASE_URL`: the PostgreSQL connection string for the production database.
 - `FRONTEND_ORIGINS`: `https://gradradar-web.vercel.app` (add any preview or
   custom domains as comma-separated origins).
-- `SUPABASE_URL` and `SUPABASE_JWT_AUDIENCE=authenticated`: validate private API requests.
+- `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and
+  `SUPABASE_JWT_AUDIENCE=authenticated`: validate private API requests. Use the
+  same publishable key configured as `VITE_SUPABASE_PUBLISHABLE_KEY`; it is
+  safe to expose and lets the API validate sessions from Supabase projects
+  using legacy HS256 signing keys.
 - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, and `TELEGRAM_WEBHOOK_SECRET`:
   used by the API/worker for private connections and webhook verification.
 

@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     telegram_bot_username: str | None = None
     telegram_webhook_secret: str | None = None
     supabase_url: str | None = None
+    supabase_publishable_key: str | None = None
     supabase_jwt_audience: str = "authenticated"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     frontend_origins: str = "http://localhost:5173,http://127.0.0.1:5173"

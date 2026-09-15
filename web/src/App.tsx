@@ -302,14 +302,19 @@ export function App() {
                 >
                   {user.email} ▾
                 </summary>
-                <div className="absolute right-0 z-10 mt-2 grid min-w-48 gap-1 rounded border border-slate-200 bg-white p-2 shadow-lg">
+                <div className="absolute right-0 z-10 mt-2 grid min-w-48 gap-1 rounded bg-white p-1 shadow-lg ring-1 ring-black/5">
                   <button
-                    className="button-secondary text-left"
+                    className="w-full bg-transparent text-left text-slate-700 hover:bg-slate-100"
+                    type="button"
                     onClick={() => navigate("/settings/notifications")}
                   >
                     Notifications
                   </button>
-                  <button className="button-secondary text-left" onClick={() => void signOut()}>
+                  <button
+                    className="w-full bg-transparent text-left text-slate-700 hover:bg-slate-100"
+                    type="button"
+                    onClick={() => void signOut()}
+                  >
                     Sign out
                   </button>
                 </div>

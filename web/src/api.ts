@@ -72,12 +72,20 @@ export type NotificationSettings = {
 async function authenticatedFetch(path: string, init?: RequestInit): Promise<Response> {
   const { supabase } = await import("./supabase");
   const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
-  const token = data.session?.access_token;
+  let token = data.session?.access_token;
   if (!token) throw new Error("Please sign in to manage notifications.");
-  return fetch(`${apiBaseUrl}${path}`, {
-    ...init,
-    headers: { ...init?.headers, Authorization: `Bearer ${token}` },
-  });
+  const request = () =>
+    fetch(`${apiBaseUrl}${path}`, {
+      ...init,
+      headers: { ...init?.headers, Authorization: `Bearer ${token}` },
+    });
+  let response = await request();
+  if (response.status === 401 && supabase) {
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    token = refreshed.session?.access_token;
+    if (token) response = await request();
+  }
+  return response;
 }
 
 export async function fetchNotificationSettings(
