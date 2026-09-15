@@ -236,7 +236,8 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
             elif text.startswith("/help") or text.startswith("/settings"):
                 reply = "Manage Telegram alerts at GradRadar notification settings."
         if reply and settings.telegram_bot_token:
-            TelegramClient(settings.telegram_bot_token).send_message(reply, chat_id=str(chat["id"]))
+            with TelegramClient(settings.telegram_bot_token) as telegram:
+                telegram.send_message(reply, chat_id=str(chat["id"]))
         return {"ok": True}
 
     return router

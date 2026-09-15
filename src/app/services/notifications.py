@@ -92,8 +92,21 @@ def consume_start(
     existing_user = session.scalar(
         select(TelegramConnection).where(TelegramConnection.user_id == intent.user_id)
     )
-    if existing_chat or existing_user:
+    if existing_chat and existing_chat is not existing_user:
         return False
+    connection = existing_user or existing_chat
+    if connection:
+        if connection.user_id != intent.user_id or connection.telegram_user_id != telegram_user_id:
+            return False
+        if connection.status == "active":
+            return False
+        connection.telegram_chat_id = telegram_chat_id
+        connection.status = "active"
+        connection.activated_at = now
+        connection.disabled_at = None
+        connection.updated_at = now
+        intent.consumed_at = now
+        return True
     intent.consumed_at = now
     session.add(
         TelegramConnection(
@@ -112,10 +125,11 @@ def consume_start(
 def enqueue_new_jobs(session: Session, job_ids: list[UUID], cycle_at: datetime) -> int:
     if not job_ids:
         return 0
+    jobs = session.execute(
+        select(JobPosting.id, JobPosting.first_seen_at).where(JobPosting.id.in_(job_ids))
+    ).all()
     connections = session.scalars(
-        select(TelegramConnection).where(
-            TelegramConnection.status == "active", TelegramConnection.activated_at < cycle_at
-        )
+        select(TelegramConnection).where(TelegramConnection.status == "active")
     ).all()
     rows = [
         {
@@ -126,8 +140,9 @@ def enqueue_new_jobs(session: Session, job_ids: list[UUID], cycle_at: datetime) 
             "attempts": 0,
             "next_attempt_at": cycle_at,
         }
-        for job_id in job_ids
+        for job_id, first_seen_at in jobs
         for connection in connections
+        if connection.activated_at is not None and connection.activated_at < first_seen_at
     ]
     if not rows:
         return 0
@@ -179,7 +194,9 @@ def deliver_pending(session: Session, telegram: TelegramClient, now: datetime) -
         connection = group[0][1]
         jobs = [row[2] for row in group]
         outbox_by_job = {outbox.job_posting_id: outbox for outbox in outbox_rows}
-        for message, message_jobs in _message_batches(jobs):
+        batches = _message_batches(jobs)
+        remaining_chunks = _chunk_counts(batches)
+        for message, message_jobs in batches:
             message_outbox_rows = [outbox_by_job[job.id] for job in message_jobs]
             outcome = telegram.send_message(message, chat_id=str(connection.telegram_chat_id))
             for outbox in message_outbox_rows:
@@ -194,8 +211,14 @@ def deliver_pending(session: Session, telegram: TelegramClient, now: datetime) -
                 )
             if outcome.success:
                 for outbox in message_outbox_rows:
-                    outbox.status, outbox.delivered_at, outbox.locked_at = "delivered", now, None
-                delivered += len(message_outbox_rows)
+                    remaining_chunks[outbox.job_posting_id] -= 1
+                    if remaining_chunks[outbox.job_posting_id] == 0:
+                        outbox.status, outbox.delivered_at, outbox.locked_at = (
+                            "delivered",
+                            now,
+                            None,
+                        )
+                        delivered += 1
                 continue
             _record_failure(message_outbox_rows, connection, outcome, now)
             break
@@ -230,6 +253,19 @@ def _message_batches(jobs: list[JobPosting]) -> list[tuple[str, list[JobPosting]
     current_jobs: list[JobPosting] = []
     for job in jobs:
         line = f"{job.company_name} — {job.title}\n{job.location}\n{job.apply_url}"
+        if len(line) + len(current) > TELEGRAM_MESSAGE_LIMIT:
+            if current_jobs:
+                messages.append((current, current_jobs))
+                current = "New GradRadar jobs (continued):\n"
+                current_jobs = []
+            prefix = "New GradRadar jobs (continued):\n"
+            chunk_size = TELEGRAM_MESSAGE_LIMIT - len(prefix)
+            messages.extend(
+                (f"{prefix}{line[index : index + chunk_size]}", [job])
+                for index in range(0, len(line), chunk_size)
+            )
+            current = "New GradRadar jobs (continued):\n"
+            continue
         candidate = (
             f"{current}\n\n{line}" if current != "New GradRadar jobs:\n" else f"{current}{line}"
         )
@@ -240,9 +276,17 @@ def _message_batches(jobs: list[JobPosting]) -> list[tuple[str, list[JobPosting]
         else:
             current = candidate
             current_jobs.append(job)
-    if current.strip():
+    if current_jobs:
         messages.append((current, current_jobs))
     return messages
+
+
+def _chunk_counts(batches: list[tuple[str, list[JobPosting]]]) -> dict[UUID, int]:
+    counts: dict[UUID, int] = {}
+    for _, jobs in batches:
+        for job in jobs:
+            counts[job.id] = counts.get(job.id, 0) + 1
+    return counts
 
 
 def _token_hash(token: str) -> str:

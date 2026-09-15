@@ -13,6 +13,8 @@ def integration_engine() -> Iterator[Engine]:
         engine = create_engine(container.get_connection_url(), pool_pre_ping=True)
         migrations = sorted((Path(__file__).parents[2] / "supabase" / "migrations").glob("*.sql"))
         with engine.begin() as connection:
+            connection.exec_driver_sql("create schema auth")
+            connection.exec_driver_sql("create table auth.users (id uuid primary key)")
             for migration in migrations:
                 connection.exec_driver_sql(migration.read_text())
         try:
