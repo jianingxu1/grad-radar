@@ -54,7 +54,6 @@ const response = {
 
 describe("App", () => {
   afterEach(() => {
-    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
     supabaseMock.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
@@ -269,40 +268,6 @@ describe("App", () => {
     expect(await screen.findByRole("button", { name: "Connect Telegram" })).toBeVisible();
     expect(supabaseMock.auth.refreshSession).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[1]?.[1]?.headers).toMatchObject({ Authorization: "Bearer new" });
-  });
-
-  it("backs off pending notification polls after a failed GET", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    window.history.replaceState({}, "", "/settings/notifications");
-    supabaseMock.auth.getSession.mockResolvedValue({
-      data: {
-        session: { user: { id: "user-1", email: "user@example.com" }, access_token: "token" },
-      },
-      error: null,
-    });
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ status: "pending", expires_at: "2026-09-14T12:00:00Z" }),
-      })
-      .mockResolvedValue({ ok: false, status: 401 });
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<App />);
-
-    expect(await screen.findByText(/Open Telegram and press Start/i)).toBeVisible();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    await vi.advanceTimersByTimeAsync(2500);
-    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(1));
-    const afterFirstFailedPoll = fetchMock.mock.calls.length;
-
-    await vi.advanceTimersByTimeAsync(2500);
-    expect(fetchMock).toHaveBeenCalledTimes(afterFirstFailedPoll);
-
-    await vi.advanceTimersByTimeAsync(2500);
-    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(afterFirstFailedPoll));
   });
 
   it("clears an auth error after a successful sign-out", async () => {

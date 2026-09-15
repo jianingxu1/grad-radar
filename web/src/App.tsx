@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 
 import {
@@ -6,10 +6,7 @@ import {
   disconnectTelegram,
   fetchJobs,
   fetchNotificationSettings,
-  nextNotificationPollDelayMs,
-  NOTIFICATION_POLL_BASE_MS,
   PAGE_SIZE,
-  wait,
   type JobFilters,
   type JobPage,
   type NotificationSettings,
@@ -300,7 +297,7 @@ export function App() {
             {user ? (
               <details className="relative">
                 <summary
-                  className="cursor-pointer list-none text-sm text-slate-700 hover:text-slate-950 focus:outline-none focus-visible:underline"
+                  className="button-secondary cursor-pointer list-none"
                   aria-label="Account menu"
                 >
                   {user.email} ▾
@@ -340,15 +337,15 @@ export function App() {
         )}
 
         <section aria-label="Feed filters" className="mb-3 border-b border-slate-200 pb-3">
-          <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-            <Field className="w-full max-w-xs" label="Search">
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1.4fr_0.8fr_1.2fr]">
+            <Field label="Search">
               <input
                 value={filters.q}
                 onChange={(event) => changeFilters({ q: event.target.value })}
                 placeholder="Company or role"
               />
             </Field>
-            <Field className="w-full max-w-[11rem]" label="Listed within">
+            <Field label="Listed within">
               <select
                 value={filters.listedWithinHours}
                 onChange={(event) => changeFilters({ listedWithinHours: event.target.value })}
@@ -530,49 +527,30 @@ function NotificationSettingsPage({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async (signal?: AbortSignal): Promise<NotificationSettings | null> => {
+  const load = async (): Promise<NotificationSettings | null> => {
     try {
-      const next = await fetchNotificationSettings(signal);
-      if (signal?.aborted) return null;
+      const next = await fetchNotificationSettings();
       setSettings(next);
       setError(null);
       return next;
     } catch (reason: unknown) {
-      if (signal?.aborted || (reason as Error).name === "AbortError") return null;
       setError(
         reason instanceof Error ? reason.message : "Notification settings could not be loaded.",
       );
       return null;
     }
-  }, []);
+  };
 
   useEffect(() => {
     if (!user) return;
-    const controller = new AbortController();
-    void Promise.resolve().then(() => load(controller.signal));
-    return () => controller.abort();
-  }, [load, user]);
+    void Promise.resolve().then(load);
+  }, [user]);
 
   useEffect(() => {
     if (!user || settings?.status !== "pending") return;
-    const controller = new AbortController();
-    void (async () => {
-      let delayMs = NOTIFICATION_POLL_BASE_MS;
-      while (!controller.signal.aborted) {
-        try {
-          await wait(delayMs, controller.signal);
-          const next = await load(controller.signal);
-          if (controller.signal.aborted) return;
-          delayMs = nextNotificationPollDelayMs(delayMs, next === null);
-          if (next !== null && next.status !== "pending") return;
-        } catch (reason: unknown) {
-          if ((reason as Error).name === "AbortError") return;
-          delayMs = nextNotificationPollDelayMs(delayMs, true);
-        }
-      }
-    })();
-    return () => controller.abort();
-  }, [load, settings?.status, user]);
+    const timer = window.setInterval(() => void load(), 2500);
+    return () => window.clearInterval(timer);
+  }, [settings?.status, user]);
 
   async function connect(): Promise<void> {
     setBusy(true);
@@ -779,17 +757,9 @@ function FaqItem({ question, children }: { question: string; children: ReactNode
   );
 }
 
-function Field({
-  className,
-  label,
-  children,
-}: {
-  className?: string;
-  label: string;
-  children: ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className={`grid gap-1 text-xs font-medium text-slate-600 ${className ?? ""}`}>
+    <label className="grid gap-1 text-xs font-medium text-slate-600">
       {label}
       {children}
     </label>
