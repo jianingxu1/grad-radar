@@ -20,6 +20,7 @@ from app.services.telegram import TelegramClient, TelegramDelivery
 
 TOKEN_TTL = timedelta(minutes=10)
 TELEGRAM_MESSAGE_LIMIT = 4096
+_MAX_DISPLAY_FIELD_LENGTH = 512
 
 
 def create_link_intent(session: Session, user_id: UUID, now: datetime) -> tuple[str, datetime]:
@@ -43,7 +44,7 @@ def connection_state(session: Session, user_id: UUID, now: datetime) -> tuple[st
         select(TelegramConnection).where(TelegramConnection.user_id == user_id)
     )
     if connection:
-        return connection.status if connection.status != "blocked" else "disabled", None
+        return "connected" if connection.status == "active" else "disabled", None
     intent = session.scalar(
         select(TelegramLinkIntent)
         .where(
@@ -194,9 +195,7 @@ def deliver_pending(session: Session, telegram: TelegramClient, now: datetime) -
         connection = group[0][1]
         jobs = [row[2] for row in group]
         outbox_by_job = {outbox.job_posting_id: outbox for outbox in outbox_rows}
-        batches = _message_batches(jobs)
-        remaining_chunks = _chunk_counts(batches)
-        for message, message_jobs in batches:
+        for message, message_jobs in _message_batches(jobs):
             message_outbox_rows = [outbox_by_job[job.id] for job in message_jobs]
             outcome = telegram.send_message(message, chat_id=str(connection.telegram_chat_id))
             for outbox in message_outbox_rows:
@@ -211,14 +210,8 @@ def deliver_pending(session: Session, telegram: TelegramClient, now: datetime) -
                 )
             if outcome.success:
                 for outbox in message_outbox_rows:
-                    remaining_chunks[outbox.job_posting_id] -= 1
-                    if remaining_chunks[outbox.job_posting_id] == 0:
-                        outbox.status, outbox.delivered_at, outbox.locked_at = (
-                            "delivered",
-                            now,
-                            None,
-                        )
-                        delivered += 1
+                    outbox.status, outbox.delivered_at, outbox.locked_at = "delivered", now, None
+                    delivered += 1
                 continue
             _record_failure(message_outbox_rows, connection, outcome, now)
             break
@@ -252,20 +245,7 @@ def _message_batches(jobs: list[JobPosting]) -> list[tuple[str, list[JobPosting]
     current = "New GradRadar jobs:\n"
     current_jobs: list[JobPosting] = []
     for job in jobs:
-        line = f"{job.company_name} — {job.title}\n{job.location}\n{job.apply_url}"
-        if len(line) + len(current) > TELEGRAM_MESSAGE_LIMIT:
-            if current_jobs:
-                messages.append((current, current_jobs))
-                current = "New GradRadar jobs (continued):\n"
-                current_jobs = []
-            prefix = "New GradRadar jobs (continued):\n"
-            chunk_size = TELEGRAM_MESSAGE_LIMIT - len(prefix)
-            messages.extend(
-                (f"{prefix}{line[index : index + chunk_size]}", [job])
-                for index in range(0, len(line), chunk_size)
-            )
-            current = "New GradRadar jobs (continued):\n"
-            continue
+        line = _job_line(job)
         candidate = (
             f"{current}\n\n{line}" if current != "New GradRadar jobs:\n" else f"{current}{line}"
         )
@@ -281,12 +261,16 @@ def _message_batches(jobs: list[JobPosting]) -> list[tuple[str, list[JobPosting]
     return messages
 
 
-def _chunk_counts(batches: list[tuple[str, list[JobPosting]]]) -> dict[UUID, int]:
-    counts: dict[UUID, int] = {}
-    for _, jobs in batches:
-        for job in jobs:
-            counts[job.id] = counts.get(job.id, 0) + 1
-    return counts
+def _job_line(job: JobPosting) -> str:
+    company = _truncate(job.company_name, _MAX_DISPLAY_FIELD_LENGTH)
+    title = _truncate(job.title, _MAX_DISPLAY_FIELD_LENGTH)
+    location = _truncate(job.location, _MAX_DISPLAY_FIELD_LENGTH)
+    prefix = f"{company} — {title}\n{location}\n"
+    return f"{prefix}{_truncate(job.apply_url, TELEGRAM_MESSAGE_LIMIT - len(prefix) - 64)}"
+
+
+def _truncate(value: str, limit: int) -> str:
+    return value if len(value) <= limit else f"{value[: limit - 1]}…"
 
 
 def _token_hash(token: str) -> str:

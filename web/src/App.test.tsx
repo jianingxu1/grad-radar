@@ -55,6 +55,7 @@ describe("App", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
     supabaseMock.authStateListeners.length = 0;
     window.history.replaceState({}, "", "/");
   });
@@ -219,6 +220,26 @@ describe("App", () => {
     fireEvent.click(screen.getByLabelText("Account menu"));
     expect(screen.getByRole("button", { name: "Sign out" })).toBeVisible();
     expect(screen.queryByLabelText("Sign in with Google")).not.toBeInTheDocument();
+  });
+
+  it("shows connected notification controls for an active Telegram connection", async () => {
+    window.history.replaceState({}, "", "/settings/notifications");
+    supabaseMock.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "user-1", email: "user@example.com" }, access_token: "token" } },
+      error: null,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ status: "connected", expires_at: null }),
+      }),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText(/Telegram alerts are connected/i)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Stop notifications" })).toBeVisible();
   });
 
   it("clears an auth error after a successful sign-out", async () => {

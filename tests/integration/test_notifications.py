@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.database.models import JobPosting, NotificationOutbox, TelegramConnection
 from app.services.notifications import (
+    connection_state,
     consume_start,
     create_link_intent,
     disable_connection,
@@ -35,6 +36,7 @@ def test_disabled_connection_can_reconnect_with_the_same_private_chat(
         connections = session.scalars(select(TelegramConnection)).all()
         assert len(connections) == 1
         assert connections[0].status == "active"
+        assert connection_state(session, user_id, now)[0] == "connected"
 
 
 def test_enqueue_only_notifies_connections_active_before_each_job_is_seen(
