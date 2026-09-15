@@ -1,26 +1,12 @@
 """Supabase JWT validation for FastAPI's private endpoints."""
 
-from functools import lru_cache
-from typing import Any
-
-import httpx
 import jwt
 from fastapi import HTTPException, Request, status
 
 from app.config.settings import Settings, get_settings
 
 
-@lru_cache(maxsize=1)
-def _jwks(url: str) -> dict[str, Any]:
-    response = httpx.get(url, timeout=5)
-    response.raise_for_status()
-    payload = response.json()
-    if not isinstance(payload, dict) or not isinstance(payload.get("keys"), list):
-        raise ValueError("invalid Supabase JWKS response")
-    return payload
-
-
-def current_user(request: Request) -> str:
+def get_current_user(request: Request) -> str:
     settings: Settings = get_settings()
     header = request.headers.get("Authorization", "")
     if (
@@ -43,5 +29,5 @@ def current_user(request: Request) -> str:
         if not isinstance(subject, str):
             raise ValueError("missing subject")
         return subject
-    except (jwt.PyJWTError, ValueError, httpx.HTTPError) as error:
+    except (jwt.PyJWTError, ValueError) as error:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid access token") from error

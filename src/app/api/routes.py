@@ -1,10 +1,11 @@
 from collections import defaultdict
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from secrets import compare_digest
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import Select, case, exists, func, or_, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -20,7 +21,7 @@ from app.api.schemas import (
 from app.config.settings import get_settings
 from app.database.models import JobPosting, JobPostingSource, Source, TelegramConnection
 from app.database.session import get_session_factory
-from app.services.auth import current_user
+from app.services.auth import get_current_user
 from app.services.notifications import (
     connection_state,
     consume_start,
@@ -154,7 +155,7 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
 
     @router.get("/v1/me/notification-settings", response_model=NotificationSettingsResponse)
     def notification_settings(
-        user_id: Annotated[str, Depends(current_user)],
+        user_id: Annotated[str, Depends(get_current_user)],
         session: Annotated[Session, Depends(get_session)],
     ) -> NotificationSettingsResponse:
         state, expires_at = connection_state(session, UUID(user_id), datetime.now(UTC))
@@ -162,7 +163,7 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
 
     @router.post("/v1/me/telegram/link", response_model=TelegramLinkResponse)
     def create_telegram_link(
-        user_id: Annotated[str, Depends(current_user)],
+        user_id: Annotated[str, Depends(get_current_user)],
         session: Annotated[Session, Depends(get_session)],
     ) -> TelegramLinkResponse:
         settings = get_settings()
@@ -178,7 +179,7 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
 
     @router.delete("/v1/me/telegram", status_code=204)
     def disconnect_telegram(
-        user_id: Annotated[str, Depends(current_user)],
+        user_id: Annotated[str, Depends(get_current_user)],
         session: Annotated[Session, Depends(get_session)],
     ) -> None:
         with session.begin():
@@ -187,12 +188,15 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
     @router.post("/v1/integrations/telegram/webhook", status_code=200)
     def telegram_webhook(
         update: dict[object, object],
-        request: Request,
+        session: Annotated[Session, Depends(get_session)],
         secret: Annotated[str | None, Header(alias="X-Telegram-Bot-Api-Secret-Token")] = None,
-        session: Annotated[Session, Depends(get_session)] = None,  # type: ignore[assignment]
     ) -> dict[str, bool]:
         settings = get_settings()
-        if not settings.telegram_webhook_secret or secret != settings.telegram_webhook_secret:
+        if (
+            not settings.telegram_webhook_secret
+            or not secret
+            or not compare_digest(secret, settings.telegram_webhook_secret)
+        ):
             raise HTTPException(status_code=403, detail="invalid webhook secret")
         message = update.get("message")
         if not isinstance(message, dict):

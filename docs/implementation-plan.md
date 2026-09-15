@@ -45,7 +45,8 @@ architecture; this file tracks delivery progress.
 
 ## Phase 4 — subscriptions
 
-- [ ] Build Telegram opt-in, preferences, unsubscribe, and delivery worker.
+- [x] Build Telegram opt-in with authenticated settings, one-time links,
+  unsubscribe, retries, and database-backed delivery.
 - [ ] Add subscriber, outbox, and delivery tables.
 - [ ] Add idempotent delivery, retries, rate limits, and opt-out handling.
 

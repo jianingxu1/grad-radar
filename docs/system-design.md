@@ -178,7 +178,7 @@ kept by Supabase after a successful sign-in. It does not create application
 profiles or grant access to private data yet; subscriptions will attach to the
 authenticated user in a later phase.
 
-This is deliberately out of scope until the feed works. Telegram is the first
+Telegram is the first
 implementation. A user opens the bot, sends `/start`,
 and then selects basic preferences (US location/remote and immediate vs digest).
 The service stores the Telegram chat ID only after that opt-in. When a job
