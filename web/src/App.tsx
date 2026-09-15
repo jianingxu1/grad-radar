@@ -364,17 +364,18 @@ export function App() {
                 <option value="720">Past 30 days</option>
               </select>
             </Field>
-            <Field label="Tracker source">
+            <Field grouped label="Tracker source">
               <div className="flex min-h-10 items-center gap-4">
                 {(Object.keys(sourceLabels) as SourceName[]).map((source) => (
-                  <label className="flex items-center gap-2 text-sm text-slate-700" key={source}>
+                  <span className="flex items-center gap-2 text-sm text-slate-700" key={source}>
                     <input
+                      aria-label={sourceLabels[source]}
                       checked={filters.sources.includes(source)}
                       onChange={() => toggleSource(source)}
                       type="checkbox"
                     />
-                    {sourceLabels[source]}
-                  </label>
+                    <span>{sourceLabels[source]}</span>
+                  </span>
                 ))}
               </div>
             </Field>
@@ -782,9 +783,28 @@ function FaqItem({ question, children }: { question: string; children: ReactNode
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  children,
+  grouped = false,
+  label,
+}: {
+  children: ReactNode;
+  grouped?: boolean;
+  label: string;
+}) {
+  const className = "grid gap-1 text-xs font-medium text-slate-600";
+
+  if (grouped) {
+    return (
+      <fieldset className={`${className} border-0 p-0`}>
+        <legend className="p-0">{label}</legend>
+        {children}
+      </fieldset>
+    );
+  }
+
   return (
-    <label className="grid gap-1 text-xs font-medium text-slate-600">
+    <label className={className}>
       {label}
       {children}
     </label>

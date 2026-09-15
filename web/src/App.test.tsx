@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const supabaseMock = vi.hoisted(() => {
@@ -188,6 +188,23 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await waitFor(() => expect(window.location.search).toContain("page=2"));
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+  });
+
+  it("only toggles a tracker source when its checkbox is clicked", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    render(<App />);
+
+    await screen.findByText("Platform Engineer, New Grad");
+    const sourceFilters = screen.getByRole("group", { name: "Tracker source" });
+    const simplifyCheckbox = within(sourceFilters).getByRole("checkbox", { name: "Simplify" });
+
+    fireEvent.click(within(sourceFilters).getByText("Simplify"));
+    expect(simplifyCheckbox).not.toBeChecked();
+    expect(window.location.search).not.toContain("sources=simplify");
+
+    fireEvent.click(simplifyCheckbox);
+    await waitFor(() => expect(window.location.search).toContain("sources=simplify"));
+    expect(simplifyCheckbox).toBeChecked();
   });
 
   it("shows a compact paginator and GradRadar footer", async () => {
