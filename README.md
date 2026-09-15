@@ -37,8 +37,8 @@ I built GradRadar so I could check one place for the latest, deduplicated new gr
 - [x] Deduplicate listings by normalized application URL while retaining their tracker source.
 - [x] Build a searchable, filterable web feed and a read-only API.
 - [x] Add optional Google sign-in.
-- [ ] Run the ingestion worker and database reliably in production, with health monitoring.
-- [ ] Build opt-in Telegram alerts with connection confirmation, unsubscribe,
+- [x] Run the ingestion worker and database reliably in production, with health monitoring. [DONE]
+- [ ] [IN PROGRESS] Build opt-in Telegram alerts with connection confirmation, unsubscribe,
   retries, and duplicate-safe outbox delivery.
 - [ ] Add other notification channels.
 - [ ] Ingest postings directly from ATS platforms such as Ashby and Greenhouse.
