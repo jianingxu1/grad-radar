@@ -1,6 +1,6 @@
 import re
 from datetime import UTC, datetime, timedelta
-from urllib.parse import parse_qsl, urlencode, urlparse
+from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 TRACKING_QUERY_PARAMETERS = frozenset(
     {
@@ -81,7 +81,9 @@ def _greenhouse_key(host: str, path: str, query: dict[str, str]) -> str | None:
 def _ashby_key(host: str, path: str) -> str | None:
     match = re.search(r"ashbyhq\.com/([^/]+)/([^/?#]+)", f"{host}{path}")
     if match:
-        return f"ashby-job-id:{match.group(1)}:{match.group(2)}"
+        board = unquote(match.group(1)).casefold()
+        job_id = unquote(match.group(2))
+        return f"ashby-job-id:{board}:{job_id}"
     return None
 
 

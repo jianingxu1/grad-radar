@@ -17,6 +17,10 @@ from app.domain.job_posting_normalization import normalize_apply_url, parse_trac
             "ashby-job-id:pylon-labs:38814ce7-217b-40f2-9ba5-8a7733a5691d",
         ),
         (
+            "https://jobs.ashbyhq.com/Superhuman%20Platform%20Inc/da5e147c-f957-4ba1-9712-1b2dde377cb0/application?embed=true&utm_source=Simplify&ref=Simplify",
+            "ashby-job-id:superhuman platform inc:da5e147c-f957-4ba1-9712-1b2dde377cb0",
+        ),
+        (
             "https://job-boards.eu.greenhouse.io/imc/jobs/4577504101?gh_src=aee47bb2teu",
             "greenhouse-job-id:4577504101",
         ),
@@ -61,6 +65,18 @@ def test_normalize_apply_url_preserves_generic_job_identifiers_and_path_case() -
     assert first == "https://jobs.example.com/Jobs/NewGrad?job_id=Alpha"
     assert second == "https://jobs.example.com/jobs/newgrad?job_id=Beta"
     assert first != second
+
+
+def test_normalize_apply_url_deduplicates_ashby_board_case_variants() -> None:
+    first = normalize_apply_url(
+        "https://jobs.ashbyhq.com/superhuman%20platform%20inc/da5e147c-f957-4ba1-9712-1b2dde377cb0"
+    )
+    second = normalize_apply_url(
+        "https://jobs.ashbyhq.com/Superhuman%20Platform%20inc/da5e147c-f957-4ba1-9712-1b2dde377cb0"
+    )
+
+    assert first == second
+    assert first == "ashby-job-id:superhuman platform inc:da5e147c-f957-4ba1-9712-1b2dde377cb0"
 
 
 @pytest.mark.parametrize("url", ["", "/jobs/1", "ftp://example.com/job", "example.com/job"])
