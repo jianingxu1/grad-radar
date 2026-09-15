@@ -1,11 +1,6 @@
 name: Ingest job sources
 
 on:
-  schedule:
-    - cron: "0,15,30,45 8-20 * * *"
-      timezone: "America/Los_Angeles"
-    - cron: "0 1,3,5,7,21,23 * * *"
-      timezone: "America/Los_Angeles"
   workflow_dispatch:
 
 permissions:
