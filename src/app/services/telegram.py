@@ -12,6 +12,8 @@ class TelegramDelivery:
     success: bool
     message_id: int | None = None
     error: str | None = None
+    retry_after: int | None = None
+    status_code: int | None = None
 
 
 class TelegramClient:
@@ -84,5 +86,12 @@ class TelegramClient:
 
         description = payload.get("description")
         if isinstance(description, str):
-            return TelegramDelivery(False, error=description)
+            parameters = payload.get("parameters")
+            retry_after = parameters.get("retry_after") if isinstance(parameters, dict) else None
+            return TelegramDelivery(
+                False,
+                error=description,
+                retry_after=retry_after if type(retry_after) is int else None,
+                status_code=response.status_code if response.status_code == 429 else None,
+            )
         return TelegramDelivery(False, error=f"Telegram returned HTTP {response.status_code}")

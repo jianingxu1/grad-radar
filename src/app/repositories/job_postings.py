@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -111,6 +112,23 @@ def persist_postings(
     )
 
     return [jobs_by_key[posting.application_key] for posting in posting_list]
+
+
+def persist_postings_with_new_ids(
+    session: Session, postings: Iterable[ParsedJobPosting], seen_at: datetime
+) -> tuple[list[JobPosting], list[UUID]]:
+    """Persist postings and expose the IDs created in this ingestion cycle."""
+    posting_list = list(postings)
+    application_keys = {posting.application_key for posting in posting_list}
+    known_keys = set(
+        session.scalars(
+            select(JobPosting.application_key).where(
+                JobPosting.application_key.in_(application_keys)
+            )
+        )
+    )
+    jobs = persist_postings(session, posting_list, seen_at)
+    return jobs, [job.id for job in jobs if job.application_key not in known_keys]
 
 
 def _priority(name: str) -> int:

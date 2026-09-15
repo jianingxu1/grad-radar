@@ -36,7 +36,7 @@ class LockingSession:
         self.executed.append(str(statement))
 
 
-def test_scheduler_registers_daytime_and_overnight_ingestion_jobs() -> None:
+def test_scheduler_registers_ingestion_and_minute_delivery_jobs() -> None:
     scheduler = FakeScheduler()
 
     configure_scheduler(
@@ -45,13 +45,16 @@ def test_scheduler_registers_daytime_and_overnight_ingestion_jobs() -> None:
         github_token=None,
     )
 
-    assert len(scheduler.jobs) == 2
+    assert len(scheduler.jobs) == 3
     daytime = scheduler.jobs[0][1]
     overnight = scheduler.jobs[1][1]
+    delivery = scheduler.jobs[2][1]
     assert str(daytime["trigger"]) == "cron[hour='7-20', minute='*/15']"
     assert str(overnight["trigger"]) == "cron[hour='1,3,5,21,23', minute='0']"
     assert daytime["trigger"].timezone == SCHEDULER_TIMEZONE
     assert overnight["trigger"].timezone == SCHEDULER_TIMEZONE
+    assert str(delivery["trigger"]) == "cron[minute='*']"
+    assert delivery["trigger"].timezone == SCHEDULER_TIMEZONE
     assert daytime["max_instances"] == 1
     assert daytime["coalesce"] is True
     assert daytime["misfire_grace_time"] == 300

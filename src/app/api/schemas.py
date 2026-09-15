@@ -34,3 +34,13 @@ class JobPageResponse(BaseModel):
     limit: int
     total: int
     source_freshness: list[SourceFreshnessResponse]
+
+
+class NotificationSettingsResponse(BaseModel):
+    status: str
+    expires_at: datetime | None = None
+
+
+class TelegramLinkResponse(BaseModel):
+    deep_link: str
+    expires_at: datetime

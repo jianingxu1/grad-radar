@@ -1,8 +1,9 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from time import perf_counter
 from typing import Any
+from uuid import UUID
 
 import httpx
 from sqlalchemy import select
@@ -16,7 +17,8 @@ from tenacity import (
 )
 
 from app.database.models import JobPostingSource, Source
-from app.repositories.job_postings import persist_postings
+from app.repositories.job_postings import persist_postings_with_new_ids
+from app.services.notifications import enqueue_new_jobs
 from app.sources.bootstrap import bootstrap_sources
 from app.sources.definitions import SOURCES, SourceDefinition
 from app.sources.parsing import ParseResult, get_parser
@@ -36,6 +38,7 @@ class IngestionSummary:
     ineligible: int | None = None
     unknown: int | None = None
     malformed: int | None = None
+    new_job_ids: list[UUID] = field(default_factory=list)
 
 
 def ingest_all(
@@ -44,8 +47,13 @@ def ingest_all(
     started_at = perf_counter()
     logger.info("ingestion.batch.started source_count=%s", len(SOURCES))
     headers = {"Authorization": f"Bearer {github_token}"} if github_token else {}
+    cycle_at = datetime.now(UTC)
     with httpx.Client(headers=headers, timeout=20) as client:
         summaries = [ingest_source(session_factory, client, source) for source in SOURCES]
+    new_ids = [job_id for summary in summaries for job_id in summary.new_job_ids]
+    if new_ids:
+        with session_factory.begin() as session:
+            enqueue_new_jobs(session, new_ids, cycle_at)
     logger.info(
         "ingestion.batch.completed duration_ms=%s successful=%s unchanged=%s failed=%s",
         _duration_ms(started_at),
@@ -114,7 +122,7 @@ def ingest_source(
         with session_factory.begin() as session:
             source = session.query(Source).filter_by(name=definition.name).one()
             synced_at = datetime.now(UTC)
-            persist_postings(session, parsed.postings, synced_at)
+            _, new_job_ids = persist_postings_with_new_ids(session, parsed.postings, synced_at)
             source.last_processed_revision_sha, source.last_successful_sync_at = (
                 sha,
                 synced_at,
@@ -130,6 +138,7 @@ def ingest_source(
             ineligible=parsed.ineligible,
             unknown=parsed.unknown,
             malformed=parsed.malformed,
+            new_job_ids=new_job_ids,
         )
         logger.info(
             "ingestion.source.completed source=%s sha=%s duration_ms=%s parsed=%s "

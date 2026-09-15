@@ -63,3 +63,38 @@ export async function fetchJobs(filters: JobFilters, signal?: AbortSignal): Prom
   if (!response.ok) throw new Error(`The jobs feed could not be loaded (${response.status}).`);
   return response.json() as Promise<JobPage>;
 }
+
+export type NotificationSettings = {
+  status: "not_connected" | "pending" | "connected" | "disabled";
+  expires_at: string | null;
+};
+
+async function authenticatedFetch(path: string, init?: RequestInit): Promise<Response> {
+  const { supabase } = await import("./supabase");
+  const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
+  const token = data.session?.access_token;
+  if (!token) throw new Error("Please sign in to manage notifications.");
+  return fetch(`${apiBaseUrl}${path}`, {
+    ...init,
+    headers: { ...init?.headers, Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function fetchNotificationSettings(
+  signal?: AbortSignal,
+): Promise<NotificationSettings> {
+  const response = await authenticatedFetch("/v1/me/notification-settings", { signal });
+  if (!response.ok) throw new Error("Notification settings could not be loaded.");
+  return response.json() as Promise<NotificationSettings>;
+}
+
+export async function createTelegramLink(): Promise<{ deep_link: string; expires_at: string }> {
+  const response = await authenticatedFetch("/v1/me/telegram/link", { method: "POST" });
+  if (!response.ok) throw new Error("Telegram could not be connected right now.");
+  return response.json() as Promise<{ deep_link: string; expires_at: string }>;
+}
+
+export async function disconnectTelegram(): Promise<void> {
+  const response = await authenticatedFetch("/v1/me/telegram", { method: "DELETE" });
+  if (!response.ok) throw new Error("Telegram could not be disconnected right now.");
+}

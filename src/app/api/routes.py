@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from sqlalchemy import Select, case, exists, func, or_, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -12,11 +12,22 @@ from app.api.schemas import (
     HealthResponse,
     JobPageResponse,
     JobResponse,
+    NotificationSettingsResponse,
     SourceFreshnessResponse,
     SourceResponse,
+    TelegramLinkResponse,
 )
-from app.database.models import JobPosting, JobPostingSource, Source
+from app.config.settings import get_settings
+from app.database.models import JobPosting, JobPostingSource, Source, TelegramConnection
 from app.database.session import get_session_factory
+from app.services.auth import current_user
+from app.services.notifications import (
+    connection_state,
+    consume_start,
+    create_link_intent,
+    disable_connection,
+)
+from app.services.telegram import TelegramClient
 from app.sources.definitions import SOURCES, SourceName
 
 
@@ -140,6 +151,89 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
             total=total or 0,
             source_freshness=_source_freshness(session),
         )
+
+    @router.get("/v1/me/notification-settings", response_model=NotificationSettingsResponse)
+    def notification_settings(
+        user_id: Annotated[str, Depends(current_user)],
+        session: Annotated[Session, Depends(get_session)],
+    ) -> NotificationSettingsResponse:
+        state, expires_at = connection_state(session, UUID(user_id), datetime.now(UTC))
+        return NotificationSettingsResponse(status=state, expires_at=expires_at)
+
+    @router.post("/v1/me/telegram/link", response_model=TelegramLinkResponse)
+    def create_telegram_link(
+        user_id: Annotated[str, Depends(current_user)],
+        session: Annotated[Session, Depends(get_session)],
+    ) -> TelegramLinkResponse:
+        settings = get_settings()
+        if not settings.telegram_bot_username:
+            raise HTTPException(status_code=503, detail="Telegram connection is unavailable")
+        now = datetime.now(UTC)
+        with session.begin():
+            token, expires_at = create_link_intent(session, UUID(user_id), now)
+        return TelegramLinkResponse(
+            deep_link=f"https://t.me/{settings.telegram_bot_username}?start={token}",
+            expires_at=expires_at,
+        )
+
+    @router.delete("/v1/me/telegram", status_code=204)
+    def disconnect_telegram(
+        user_id: Annotated[str, Depends(current_user)],
+        session: Annotated[Session, Depends(get_session)],
+    ) -> None:
+        with session.begin():
+            disable_connection(session, UUID(user_id), datetime.now(UTC))
+
+    @router.post("/v1/integrations/telegram/webhook", status_code=200)
+    def telegram_webhook(
+        update: dict[object, object],
+        request: Request,
+        secret: Annotated[str | None, Header(alias="X-Telegram-Bot-Api-Secret-Token")] = None,
+        session: Annotated[Session, Depends(get_session)] = None,  # type: ignore[assignment]
+    ) -> dict[str, bool]:
+        settings = get_settings()
+        if not settings.telegram_webhook_secret or secret != settings.telegram_webhook_secret:
+            raise HTTPException(status_code=403, detail="invalid webhook secret")
+        message = update.get("message")
+        if not isinstance(message, dict):
+            return {"ok": True}
+        chat, sender, text = message.get("chat"), message.get("from"), message.get("text")
+        if not isinstance(chat, dict) or not isinstance(sender, dict) or not isinstance(text, str):
+            return {"ok": True}
+        if (
+            chat.get("type") != "private"
+            or type(chat.get("id")) is not int
+            or type(sender.get("id")) is not int
+        ):
+            return {"ok": True}
+        reply: str | None = None
+        now = datetime.now(UTC)
+        with session.begin():
+            if text.startswith("/start "):
+                reply = (
+                    "Telegram alerts connected."
+                    if consume_start(
+                        session, text.split(maxsplit=1)[1], sender["id"], chat["id"], now
+                    )
+                    else (
+                        "That connection link is invalid or has expired. "
+                        "Create a new link on GradRadar."
+                    )
+                )
+            elif text.startswith("/stop"):
+                connection = session.scalar(
+                    select(TelegramConnection).where(
+                        TelegramConnection.telegram_chat_id == chat["id"]
+                    )
+                )
+                if connection:
+                    disable_connection(session, connection.user_id, now)
+                reply = "Telegram alerts stopped. You can reconnect from GradRadar settings."
+            elif text.startswith("/help") or text.startswith("/settings"):
+                reply = "Manage Telegram alerts at GradRadar notification settings."
+        if reply and settings.telegram_bot_token:
+            TelegramClient(settings.telegram_bot_token).send_message(reply, chat_id=str(chat["id"]))
+        return {"ok": True}
 
     return router
 

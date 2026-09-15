@@ -1,7 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 
-import { fetchJobs, PAGE_SIZE, type JobFilters, type JobPage, type SourceName } from "./api";
+import {
+  createTelegramLink,
+  disconnectTelegram,
+  fetchJobs,
+  fetchNotificationSettings,
+  PAGE_SIZE,
+  type JobFilters,
+  type JobPage,
+  type NotificationSettings,
+  type SourceName,
+} from "./api";
 import { defaultFilters, filtersFromSearch, filtersToSearch } from "./filterState";
 import { supabase } from "./supabase";
 
@@ -161,7 +171,7 @@ export function App() {
   }, [user]);
 
   useEffect(() => {
-    if (path === "/faq") return;
+    if (path === "/faq" || path === "/settings/notifications") return;
     const controller = new AbortController();
     void fetchJobs(filters, controller.signal)
       .then((nextPage) => {
@@ -195,7 +205,7 @@ export function App() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  function navigate(nextPath: "/" | "/faq"): void {
+  function navigate(nextPath: "/" | "/faq" | "/settings/notifications"): void {
     window.history.pushState({}, "", nextPath);
     setPath(nextPath);
     if (nextPath === "/") {
@@ -256,6 +266,9 @@ export function App() {
   if (path === "/faq") {
     return <FaqPage onNavigate={navigate} />;
   }
+  if (path === "/settings/notifications") {
+    return <NotificationSettingsPage user={user} onNavigate={navigate} />;
+  }
 
   const pageCount = page ? Math.max(1, Math.ceil(page.total / PAGE_SIZE)) : 1;
   const showInitialSkeleton = loading && page === null;
@@ -282,14 +295,25 @@ export function App() {
               FAQ
             </button>
             {user ? (
-              <div className="flex items-center gap-2">
-                <span className="max-w-48 truncate text-sm text-slate-600" title={user.email}>
-                  {user.email}
-                </span>
-                <button className="button-secondary" onClick={() => void signOut()}>
-                  Sign out
-                </button>
-              </div>
+              <details className="relative">
+                <summary
+                  className="button-secondary cursor-pointer list-none"
+                  aria-label="Account menu"
+                >
+                  {user.email} ▾
+                </summary>
+                <div className="absolute right-0 z-10 mt-2 grid min-w-48 gap-1 rounded border border-slate-200 bg-white p-2 shadow-lg">
+                  <button
+                    className="button-secondary text-left"
+                    onClick={() => navigate("/settings/notifications")}
+                  >
+                    Notifications
+                  </button>
+                  <button className="button-secondary text-left" onClick={() => void signOut()}>
+                    Sign out
+                  </button>
+                </div>
+              </details>
             ) : googleLoadError ? (
               <span className="text-sm text-red-700" role="alert">
                 Google sign-in is unavailable. Refresh and try again.
@@ -379,29 +403,29 @@ export function App() {
             </div>
           )}
           {page?.items.length ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[960px] table-fixed border-collapse text-left">
+            <div>
+              <table className="w-full table-fixed border-collapse text-left">
                 <thead className="border-y border-slate-200 text-sm font-medium text-slate-500">
                   <tr>
                     <SortableHeader
-                      className="w-[15%]"
+                      className="w-[34%] sm:w-[15%]"
                       currentSort={filters.sortBy}
                       direction={filters.sortDirection}
                       label="Company"
                       onClick={() => changeSort("company_name")}
                       sortKey="company_name"
                     />
-                    <th className="w-[37%] px-3 py-2 font-medium">Role</th>
-                    <th className="w-[18%] px-3 py-2 font-medium">Location</th>
+                    <th className="w-[66%] px-2 py-2 font-medium sm:w-[37%] sm:px-3">Role</th>
+                    <th className="hidden w-[18%] px-3 py-2 font-medium sm:table-cell">Location</th>
                     <SortableHeader
-                      className="w-[10%]"
+                      className="hidden w-[10%] sm:table-cell"
                       currentSort={filters.sortBy}
                       direction={filters.sortDirection}
                       label="Listed"
                       onClick={() => changeSort("listed_at")}
                       sortKey="listed_at"
                     />
-                    <th className="w-[10%] px-3 py-2 font-medium">Source</th>
+                    <th className="hidden w-[10%] px-3 py-2 font-medium sm:table-cell">Source</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -485,6 +509,167 @@ async function createNonce(): Promise<{ hashed: string; raw: string }> {
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
   return { raw, hashed };
+}
+
+function NotificationSettingsPage({
+  user,
+  onNavigate,
+}: {
+  user: User | null;
+  onNavigate: (path: "/") => void;
+}) {
+  const [settings, setSettings] = useState<NotificationSettings | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = async (): Promise<NotificationSettings | null> => {
+    try {
+      const next = await fetchNotificationSettings();
+      setSettings(next);
+      setError(null);
+      return next;
+    } catch (reason: unknown) {
+      setError(
+        reason instanceof Error ? reason.message : "Notification settings could not be loaded.",
+      );
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    void Promise.resolve().then(load);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || settings?.status !== "pending") return;
+    const timer = window.setInterval(() => void load(), 2500);
+    return () => window.clearInterval(timer);
+  }, [settings?.status, user]);
+
+  async function connect(): Promise<void> {
+    setBusy(true);
+    try {
+      const link = await createTelegramLink();
+      window.open(link.deep_link, "_blank", "noopener,noreferrer");
+      await load();
+    } catch (reason: unknown) {
+      setError(
+        reason instanceof Error ? reason.message : "Telegram could not be connected right now.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function stop(): Promise<void> {
+    setBusy(true);
+    try {
+      await disconnectTelegram();
+      await load();
+    } catch (reason: unknown) {
+      setError(
+        reason instanceof Error ? reason.message : "Telegram could not be disconnected right now.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col bg-white text-slate-950">
+      <div className="mx-auto w-full max-w-2xl flex-1 px-5 py-8 sm:px-8">
+        <button className="button-secondary" onClick={() => onNavigate("/")}>
+          Back to jobs
+        </button>
+        <h1 className="mt-8 text-3xl font-semibold tracking-tight">Notifications</h1>
+        {!user ? (
+          <p className="mt-4 text-slate-600">Sign in to connect Telegram alerts.</p>
+        ) : (
+          <section className="mt-6 rounded border border-slate-200 p-6" aria-live="polite">
+            {error && (
+              <p className="mb-4 text-red-700" role="alert">
+                {error}
+              </p>
+            )}
+            {!settings ? (
+              <p>Loading notification settings…</p>
+            ) : (
+              <NotificationState
+                settings={settings}
+                busy={busy}
+                onConnect={() => void connect()}
+                onStop={() => void stop()}
+              />
+            )}
+          </section>
+        )}
+      </div>
+    </main>
+  );
+}
+
+function NotificationState({
+  settings,
+  busy,
+  onConnect,
+  onStop,
+}: {
+  settings: NotificationSettings;
+  busy: boolean;
+  onConnect: () => void;
+  onStop: () => void;
+}) {
+  if (settings.status === "connected") {
+    return (
+      <>
+        <p>
+          Telegram alerts are connected. You will receive new GradRadar jobs after each ingestion
+          cycle.
+        </p>
+        <button className="mt-4" disabled={busy} onClick={onStop}>
+          Stop notifications
+        </button>
+      </>
+    );
+  }
+  if (settings.status === "pending") {
+    return (
+      <>
+        <p>
+          Open Telegram and press Start to finish connecting. This link expires{" "}
+          {settings.expires_at ? formatDate(settings.expires_at) : "soon"}.
+        </p>
+        <button className="mt-4" disabled={busy} onClick={onConnect}>
+          Open Telegram
+        </button>
+        <button className="button-secondary ml-2 mt-4" disabled={busy} onClick={onConnect}>
+          Create a new link
+        </button>
+      </>
+    );
+  }
+  if (settings.status === "disabled") {
+    return (
+      <>
+        <p>Telegram alerts are off or the bot can no longer message this chat.</p>
+        <button className="mt-4" disabled={busy} onClick={onConnect}>
+          Reconnect Telegram
+        </button>
+      </>
+    );
+  }
+  return (
+    <>
+      <p>
+        Connect Telegram to get alerts for jobs GradRadar discovers after you confirm the
+        connection.
+      </p>
+      <button className="mt-4" disabled={busy} onClick={onConnect}>
+        Connect Telegram
+      </button>
+    </>
+  );
 }
 
 function FaqPage({ onNavigate }: { onNavigate: (path: "/") => void }) {
@@ -633,10 +818,10 @@ function JobRow({ job }: { job: JobPage["items"][number] }) {
 
   return (
     <tr className="border-b border-slate-100 text-sm hover:bg-slate-50">
-      <td className="truncate px-3 py-3 font-medium" title={companyName}>
+      <td className="break-words px-2 py-3 font-medium sm:truncate sm:px-3" title={companyName}>
         {companyName}
       </td>
-      <td className="truncate px-3 py-3">
+      <td className="break-words px-2 py-3 sm:truncate sm:px-3">
         <a
           href={job.apply_url}
           target="_blank"
@@ -648,14 +833,17 @@ function JobRow({ job }: { job: JobPage["items"][number] }) {
           {job.title}
         </a>
       </td>
-      <td className="truncate px-3 py-3 text-slate-600" title={job.location}>
+      <td className="hidden truncate px-3 py-3 text-slate-600 sm:table-cell" title={job.location}>
         {job.location}
       </td>
-      <td className="px-3 py-3 text-slate-500" title={formatDate(job.listed_at)}>
+      <td
+        className="hidden px-3 py-3 text-slate-500 sm:table-cell"
+        title={formatDate(job.listed_at)}
+      >
         {formatAge(job.listed_at)}
       </td>
       <td
-        className="truncate px-3 py-3 text-slate-500"
+        className="hidden truncate px-3 py-3 text-slate-500 sm:table-cell"
         title={job.sources.map((source) => sourceLabels[source.name]).join(", ")}
       >
         {job.sources.map((source, index) => (

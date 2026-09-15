@@ -10,7 +10,7 @@ GradRadar helps U.S. new grads find software engineering roles early by putting 
 
 As a CS student looking for new-grad positions, I kept hearing the same advice: apply early. Once a role has thousands of applications, getting an interview is already harder; applying late makes it even harder.
 
-I built GradRadar so I could check one place for new, deduplicated listings instead of manually refreshing several trackers. The goal is also to send alerts for new postings through Telegram, WhatsApp, and Discord, so candidates do not miss an opportunity because they saw it too late.
+I built GradRadar so I could check one place for new, deduplicated listings instead of manually refreshing several trackers. The goal is also to send opt-in Telegram alerts, so candidates do not miss an opportunity because they saw it too late.
 
 ## Tech stack
 
@@ -27,6 +27,9 @@ feed:
 - `DATABASE_URL`: the PostgreSQL connection string for the production database.
 - `FRONTEND_ORIGINS`: `https://gradradar-web.vercel.app` (add any preview or
   custom domains as comma-separated origins).
+- `SUPABASE_URL` and `SUPABASE_JWT_AUDIENCE=authenticated`: validate private API requests.
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, and `TELEGRAM_WEBHOOK_SECRET`:
+  used by the API/worker for private connections and webhook verification.
 
 After changing either variable, redeploy the Railway service. Its `/health`
 endpoint must return `{"status":"ok"}` before the job feed can load.
@@ -40,7 +43,8 @@ Vercel if its `VITE_GOOGLE_CLIENT_ID` value changes.
 - Ingests new-grad SWE listings from the [SpeedyApply](https://github.com/speedyapply/2027-SWE-College-Jobs) and [Simplify](https://github.com/SimplifyJobs/New-Grad-Positions) GitHub trackers.
 - Keeps clearly U.S.-eligible roles, normalizes application URLs, and uses those URLs to deduplicate the same job across sources.
 - Stores the result and displays it in a searchable, filterable website with the original application link and tracker source.
-- Will let users opt in to alerts for new postings through Telegram first, then Discord and WhatsApp.
+- Lets signed-in users opt in to private Telegram alerts. Alerts begin only after
+  connection confirmation and never backfill old jobs.
 
 ## Roadmap
 
@@ -50,6 +54,7 @@ Vercel if its `VITE_GOOGLE_CLIENT_ID` value changes.
 - [x] Build a searchable, filterable web feed and a read-only API.
 - [x] Add optional Google sign-in.
 - [ ] Run the ingestion worker and database reliably in production, with health monitoring.
-- [ ] Build opt-in Telegram alerts, including preferences, unsubscribe, retries, and duplicate-safe delivery.
-- [ ] Add Discord and WhatsApp notification channels.
+- [x] Build opt-in Telegram alerts with connection confirmation, unsubscribe,
+  retries, and duplicate-safe outbox delivery.
+- [ ] Add other notification channels.
 - [ ] Ingest postings directly from ATS platforms such as Ashby and Greenhouse.

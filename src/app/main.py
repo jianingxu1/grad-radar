@@ -12,8 +12,8 @@ def create_app(session_factory: sessionmaker[Session] | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=get_settings().cors_origins,
         allow_credentials=False,
-        allow_methods=["GET"],
-        allow_headers=[],
+        allow_methods=["GET", "POST", "DELETE"],
+        allow_headers=["Authorization", "Content-Type", "X-Telegram-Bot-Api-Secret-Token"],
     )
 
     @app.get("/", tags=["service"])

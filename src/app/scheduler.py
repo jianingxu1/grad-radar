@@ -2,6 +2,7 @@
 
 import logging
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -13,6 +14,8 @@ from app.config.settings import get_settings
 from app.database.session import create_session_factory
 from app.logging import configure_logging
 from app.services.github_ingestion import IngestionSummary, ingest_all
+from app.services.notifications import deliver_pending
+from app.services.telegram import TelegramClient
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +77,24 @@ def configure_scheduler(
         max_instances=1,
         coalesce=True,
         misfire_grace_time=300,
+    )
+
+    def deliver() -> None:
+        settings = get_settings()
+        with (
+            session_factory.begin() as session,
+            TelegramClient(settings.telegram_bot_token) as telegram,
+        ):
+            deliver_pending(session, telegram, datetime.now(UTC))
+
+    scheduler.add_job(
+        deliver,
+        trigger=CronTrigger(minute="*", timezone=SCHEDULER_TIMEZONE),
+        id="telegram-delivery",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=60,
     )
 
 
