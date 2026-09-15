@@ -279,7 +279,7 @@ export function App() {
         <header className="mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-slate-200 pb-4">
           <button
             aria-label="Go to GradRadar home"
-            className="flex items-center gap-3 bg-transparent p-0 text-left text-slate-950 shadow-none hover:bg-transparent"
+            className="flex cursor-pointer items-center gap-3 bg-transparent p-0 text-left text-slate-950 shadow-none hover:bg-transparent"
             type="button"
             onClick={() => navigate("/")}
           >
@@ -695,7 +695,7 @@ function PageHeader({ label, onNavigate }: { label: string; onNavigate: (path: "
       <div className="flex items-center gap-3">
         <button
           aria-label="Go to GradRadar home"
-          className="flex items-center gap-3 bg-transparent p-0 text-left text-slate-950 shadow-none hover:bg-transparent"
+          className="flex cursor-pointer items-center gap-3 bg-transparent p-0 text-left text-slate-950 shadow-none hover:bg-transparent"
           type="button"
           onClick={() => onNavigate("/")}
         >
