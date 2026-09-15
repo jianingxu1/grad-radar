@@ -19,6 +19,22 @@ I built GradRadar so I could check one place for new, deduplicated listings inst
 - **Data and jobs:** PostgreSQL/Supabase, GitHub API, HTTPX, APScheduler
 - **Testing:** pytest, respx, Vitest, Testing Library
 
+## Production configuration
+
+The API needs these Railway variables before the Vercel website can load the
+feed:
+
+- `DATABASE_URL`: the PostgreSQL connection string for the production database.
+- `FRONTEND_ORIGINS`: `https://gradradar-web.vercel.app` (add any preview or
+  custom domains as comma-separated origins).
+
+After changing either variable, redeploy the Railway service. Its `/health`
+endpoint must return `{"status":"ok"}` before the job feed can load.
+
+For Google sign-in, add `https://gradradar-web.vercel.app` to the OAuth
+client's Authorized JavaScript origins in Google Cloud Console, then redeploy
+Vercel if its `VITE_GOOGLE_CLIENT_ID` value changes.
+
 ## What it does
 
 - Ingests new-grad SWE listings from the [SpeedyApply](https://github.com/speedyapply/2027-SWE-College-Jobs) and [Simplify](https://github.com/SimplifyJobs/New-Grad-Positions) GitHub trackers.
