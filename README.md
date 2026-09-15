@@ -8,9 +8,9 @@ GradRadar helps U.S. new grads find software engineering roles early by putting 
 
 ## Why I built this
 
-As a CS student looking for new-grad positions, I kept hearing the same advice: apply early. Once a role has thousands of applications, getting an interview is already harder; applying late makes it even harder.
+As a CS student looking for new-grad positions, I kept hearing the same advice: apply early. Once a role has thousands of applications, getting an interview is hard; so applying early is essential.
 
-I built GradRadar so I could check one place for new, deduplicated listings instead of manually refreshing several trackers. The goal is also to send opt-in Telegram alerts, so candidates do not miss an opportunity because they saw it too late.
+I built GradRadar so I could check one place for the latest, deduplicated new grad job listings instead of manually refreshing several trackers. The goal is also to send opt-in Telegram alerts, so we don't miss an opportunity because we saw it too late.
 
 ## Tech stack
 
