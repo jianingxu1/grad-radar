@@ -645,8 +645,8 @@ function NotificationState({
     return (
       <>
         <p>
-          Telegram alerts are connected. You will receive new GradRadar jobs after each ingestion
-          cycle.
+          Telegram alerts are on. You’ll receive a message whenever GradRadar detects a new job
+          posting, so you can apply early.
         </p>
         <button className="mt-4 bg-red-600 hover:bg-red-700" disabled={busy} onClick={onStop}>
           Stop notifications
