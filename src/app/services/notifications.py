@@ -1,6 +1,7 @@
 """Private Telegram connection and database-backed delivery workflow."""
 
 import hashlib
+import logging
 import secrets
 from datetime import datetime, timedelta
 from typing import Literal
@@ -18,6 +19,8 @@ from app.database.models import (
     TelegramLinkIntent,
 )
 from app.services.telegram import TelegramClient, TelegramDelivery
+
+logger = logging.getLogger(__name__)
 
 TOKEN_TTL = timedelta(minutes=10)
 TELEGRAM_MESSAGE_LIMIT = 4096
@@ -161,8 +164,9 @@ def enqueue_new_jobs(session: Session, job_ids: list[UUID], cycle_at: datetime) 
         if connection.activated_at is not None and connection.activated_at < first_seen_at
     ]
     if not rows:
+        logger.info("notifications.enqueue.completed new_jobs=%s enqueued=0", len(job_ids))
         return 0
-    session.execute(
+    inserted_rows = session.execute(
         insert(NotificationOutbox)
         .values(rows)
         .on_conflict_do_nothing(
@@ -171,8 +175,15 @@ def enqueue_new_jobs(session: Session, job_ids: list[UUID], cycle_at: datetime) 
                 NotificationOutbox.telegram_connection_id,
             ]
         )
+        .returning(NotificationOutbox.id)
+    ).all()
+    logger.info(
+        "notifications.enqueue.completed new_jobs=%s active_connections=%s enqueued=%s",
+        len(job_ids),
+        len(connections),
+        len(inserted_rows),
     )
-    return len(rows)
+    return len(inserted_rows)
 
 
 def deliver_pending(session: Session, telegram: TelegramClient, now: datetime) -> int:
@@ -205,6 +216,11 @@ def deliver_pending(session: Session, telegram: TelegramClient, now: datetime) -
             row
         )
     delivered = 0
+    logger.info(
+        "notifications.delivery.started pending=%s batches=%s",
+        len(rows),
+        sum(len(_message_batches([row[2] for row in group])) for group in groups.values()),
+    )
     for _, group in groups.items():
         outbox_rows = [row[0] for row in group]
         connection = group[0][1]
@@ -227,9 +243,29 @@ def deliver_pending(session: Session, telegram: TelegramClient, now: datetime) -
                 for outbox in message_outbox_rows:
                     outbox.status, outbox.delivered_at, outbox.locked_at = "delivered", now, None
                     delivered += 1
+                logger.info(
+                    "notifications.delivery.succeeded jobs=%s message_id=%s",
+                    len(message_outbox_rows),
+                    outcome.message_id,
+                )
                 continue
             _record_failure(message_outbox_rows, connection, outcome, now)
+            logger.error(
+                "notifications.delivery.failed jobs=%s error=%s status_code=%s "
+                "retry_after=%s blocked=%s",
+                len(message_outbox_rows),
+                outcome.error,
+                outcome.status_code,
+                outcome.retry_after,
+                connection.status == "blocked",
+            )
             break
+    logger.info(
+        "notifications.delivery.completed pending=%s delivered=%s failed_or_deferred=%s",
+        len(rows),
+        delivered,
+        len(rows) - delivered,
+    )
     return delivered
 
 

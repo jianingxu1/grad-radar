@@ -51,7 +51,9 @@ def test_send_message_returns_telegram_errors() -> None:
             delivery = telegram.send_message("Hello")
 
         assert delivery == TelegramDelivery(
-            success=False, error="Forbidden: bot was kicked from the group chat"
+            success=False,
+            error="Forbidden: bot was kicked from the group chat",
+            status_code=403,
         )
 
 

@@ -51,15 +51,19 @@ def ingest_all(
     with httpx.Client(headers=headers, timeout=20) as client:
         summaries = [ingest_source(session_factory, client, source) for source in SOURCES]
     new_ids = [job_id for summary in summaries for job_id in summary.new_job_ids]
+    notifications_enqueued = 0
     if new_ids:
         with session_factory.begin() as session:
-            enqueue_new_jobs(session, new_ids, cycle_at)
+            notifications_enqueued = enqueue_new_jobs(session, new_ids, cycle_at)
     logger.info(
-        "ingestion.batch.completed duration_ms=%s successful=%s unchanged=%s failed=%s",
+        "ingestion.batch.completed duration_ms=%s successful=%s unchanged=%s failed=%s "
+        "new_jobs=%s notifications_enqueued=%s",
         _duration_ms(started_at),
         sum(summary.status == "success" for summary in summaries),
         sum(summary.status == "unchanged" for summary in summaries),
         sum(summary.status == "failed" for summary in summaries),
+        len(new_ids),
+        notifications_enqueued,
     )
     return summaries
 
@@ -143,7 +147,7 @@ def ingest_source(
         )
         logger.info(
             "ingestion.source.completed source=%s sha=%s duration_ms=%s parsed=%s "
-            "eligible=%s ineligible=%s unknown=%s malformed=%s",
+            "eligible=%s ineligible=%s unknown=%s malformed=%s new_jobs=%s",
             summary.source,
             summary.sha,
             summary.duration_ms,
@@ -152,6 +156,7 @@ def ingest_source(
             summary.ineligible,
             summary.unknown,
             summary.malformed,
+            len(summary.new_job_ids),
         )
         return summary
     except Exception as error:

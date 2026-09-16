@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
@@ -31,6 +32,8 @@ from app.services.notifications import (
 from app.services.telegram import TelegramClient
 from app.sources.definitions import SOURCES, SourceName
 
+logger = logging.getLogger(__name__)
+
 
 def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRouter:
     router = APIRouter()
@@ -45,6 +48,7 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         try:
             session.execute(text("select 1"))
         except Exception as error:
+            logger.exception("api.health.failed error=%s", error)
             raise HTTPException(status_code=503, detail="database unavailable") from error
         return HealthResponse(status="ok")
 
@@ -165,10 +169,12 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
     ) -> TelegramLinkResponse:
         settings = get_settings()
         if not settings.telegram_bot_username:
+            logger.error("api.telegram.link.failed reason=bot_username_not_configured")
             raise HTTPException(status_code=503, detail="Telegram connection is unavailable")
         now = datetime.now(UTC)
         with session.begin():
             token, expires_at = create_link_intent(session, UUID(user_id), now)
+        logger.info("api.telegram.link.created expires_at=%s", expires_at.isoformat())
         return TelegramLinkResponse(
             deep_link=f"https://t.me/{settings.telegram_bot_username}?start={token}",
             expires_at=expires_at,
@@ -180,7 +186,8 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         session: Annotated[Session, Depends(get_session)],
     ) -> None:
         with session.begin():
-            disable_connection(session, UUID(user_id), datetime.now(UTC))
+            disconnected = disable_connection(session, UUID(user_id), datetime.now(UTC))
+        logger.info("api.telegram.disconnected existed=%s", disconnected)
 
     @router.post("/v1/integrations/telegram/webhook", status_code=200)
     def telegram_webhook(
@@ -194,18 +201,22 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
             or not secret
             or not compare_digest(secret, settings.telegram_webhook_secret)
         ):
+            logger.warning("api.telegram.webhook.rejected reason=invalid_secret")
             raise HTTPException(status_code=403, detail="invalid webhook secret")
         message = update.get("message")
         if not isinstance(message, dict):
+            logger.info("api.telegram.webhook.ignored reason=no_message")
             return {"ok": True}
         chat, sender, text = message.get("chat"), message.get("from"), message.get("text")
         if not isinstance(chat, dict) or not isinstance(sender, dict) or not isinstance(text, str):
+            logger.info("api.telegram.webhook.ignored reason=invalid_message")
             return {"ok": True}
         if (
             chat.get("type") != "private"
             or type(chat.get("id")) is not int
             or type(sender.get("id")) is not int
         ):
+            logger.info("api.telegram.webhook.ignored reason=non_private_message")
             return {"ok": True}
         reply: str | None = None
         now = datetime.now(UTC)
@@ -215,6 +226,7 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
                     session, text.split(maxsplit=1)[1], sender["id"], chat["id"], now
                 )
                 reply = _telegram_start_reply(result)
+                logger.info("api.telegram.webhook.start result=%s", result)
             elif text.startswith("/start"):
                 reply = "Open GradRadar notification settings and use Connect Telegram first."
             elif text.startswith("/stop"):
@@ -226,11 +238,24 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
                 if connection:
                     disable_connection(session, connection.user_id, now)
                 reply = "Telegram alerts stopped. You can reconnect from GradRadar settings."
+                logger.info("api.telegram.webhook.stop connection_found=%s", connection is not None)
             elif text.startswith("/help") or text.startswith("/settings"):
                 reply = "Manage Telegram alerts at GradRadar notification settings."
         if reply and settings.telegram_bot_token:
             with TelegramClient(settings.telegram_bot_token) as telegram:
-                telegram.send_message(reply, chat_id=str(chat["id"]))
+                outcome = telegram.send_message(reply, chat_id=str(chat["id"]))
+            if outcome.success:
+                logger.info(
+                    "api.telegram.webhook.reply_succeeded message_id=%s", outcome.message_id
+                )
+            else:
+                logger.error(
+                    "api.telegram.webhook.reply_failed error=%s status_code=%s",
+                    outcome.error,
+                    outcome.status_code,
+                )
+        elif reply:
+            logger.error("api.telegram.webhook.reply_failed reason=bot_token_not_configured")
         return {"ok": True}
 
     return router

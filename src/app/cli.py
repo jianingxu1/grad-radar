@@ -1,4 +1,5 @@
 import argparse
+import logging
 from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -11,6 +12,8 @@ from app.services.notifications import deliver_pending
 from app.services.telegram import TelegramClient
 from app.sources.bootstrap import bootstrap_sources
 
+logger = logging.getLogger(__name__)
+
 
 def ingest_and_deliver(
     session_factory: sessionmaker[Session],
@@ -22,7 +25,12 @@ def ingest_and_deliver(
         session_factory.begin() as session,
         TelegramClient(telegram_bot_token) as telegram,
     ):
-        deliver_pending(session, telegram, datetime.now(UTC))
+        delivered = deliver_pending(session, telegram, datetime.now(UTC))
+    logger.info(
+        "worker.ingest.completed sources=%s notifications_delivered=%s",
+        len(summaries),
+        delivered,
+    )
     return summaries
 
 
@@ -37,7 +45,6 @@ def main() -> None:
         summaries = ingest_and_deliver(
             session_factory, settings.github_token, settings.telegram_bot_token
         )
-        print(*summaries, sep="\n")
         if all(summary.status == "failed" for summary in summaries):
             raise SystemExit(1)
         return

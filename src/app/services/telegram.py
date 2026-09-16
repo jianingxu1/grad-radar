@@ -92,6 +92,10 @@ class TelegramClient:
                 False,
                 error=description,
                 retry_after=retry_after if type(retry_after) is int else None,
-                status_code=response.status_code if response.status_code == 429 else None,
+                status_code=response.status_code,
             )
-        return TelegramDelivery(False, error=f"Telegram returned HTTP {response.status_code}")
+        return TelegramDelivery(
+            False,
+            error=f"Telegram returned HTTP {response.status_code}",
+            status_code=response.status_code,
+        )

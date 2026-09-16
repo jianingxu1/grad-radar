@@ -44,7 +44,9 @@ def test_ingestion_persists_changed_revision_and_skips_unchanged_revision(
         import httpx
 
         with httpx.Client() as client:
-            assert ingest_source(session_factory, client, definition).status == "success"
+            first_summary = ingest_source(session_factory, client, definition)
+            assert first_summary.status == "success"
+            assert len(first_summary.new_job_ids) == 3
             previous_sync_at = datetime(2026, 1, 1, tzinfo=UTC)
             with session_factory.begin() as session:
                 source = session.scalar(select(Source).where(Source.name == definition.name))
