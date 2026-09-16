@@ -302,30 +302,31 @@ export function App() {
               FAQ
             </button>
             {user ? (
-              <details className="relative">
-                <summary
-                  className="cursor-pointer list-none rounded px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-                  aria-label="Account menu"
+              <>
+                <button
+                  className="button-secondary"
+                  onClick={() => navigate("/settings/notifications")}
                 >
-                  {user.email} ▾
-                </summary>
-                <div className="absolute right-0 z-10 mt-2 grid min-w-48 gap-1 rounded bg-white p-1 shadow-lg ring-1 ring-black/5">
-                  <button
-                    className="w-full bg-transparent text-left text-slate-700 hover:bg-slate-100"
-                    type="button"
-                    onClick={() => navigate("/settings/notifications")}
+                  Notifications
+                </button>
+                <details className="relative">
+                  <summary
+                    className="cursor-pointer list-none rounded px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                    aria-label="Account menu"
                   >
-                    Notifications
-                  </button>
-                  <button
-                    className="w-full bg-transparent text-left text-slate-700 hover:bg-slate-100"
-                    type="button"
-                    onClick={() => void signOut()}
-                  >
-                    Sign out
-                  </button>
-                </div>
-              </details>
+                    {user.email} ▾
+                  </summary>
+                  <div className="absolute right-0 z-10 mt-2 grid min-w-48 gap-1 rounded bg-white p-1 shadow-lg ring-1 ring-black/5">
+                    <button
+                      className="w-full bg-transparent text-left text-slate-700 hover:bg-slate-100"
+                      type="button"
+                      onClick={() => void signOut()}
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                </details>
+              </>
             ) : googleLoadError ? (
               <span className="text-sm text-red-700" role="alert">
                 Google sign-in is unavailable. Refresh and try again.
@@ -602,7 +603,7 @@ function NotificationSettingsPage({
           </p>
         </section>
         {!user ? (
-          <p className="mt-4 text-slate-600">Sign in to connect Telegram alerts.</p>
+          <p className="mt-4 text-slate-600">Log in to set up Telegram notifications.</p>
         ) : (
           <section className="mt-6 rounded border border-slate-200 p-6" aria-live="polite">
             {error && (
@@ -760,6 +761,12 @@ function FaqPage({ onNavigate }: { onNavigate: (path: "/") => void }) {
             <FaqItem question="Does GradRadar require an account or track my applications?">
               No. The current feed is public and read-only. It does not submit applications or track
               application status.
+            </FaqItem>
+            <FaqItem question="How do I set up Telegram notifications to get the latest postings?">
+              Log in first, then open the Notifications tab and click Connect. GradRadar will open
+              Telegram with a start message for the GradRadar alert bot. Send that message to finish
+              setup. To stop notifications, click Stop notifications in GradRadar or send /stop to
+              the bot.
             </FaqItem>
           </dl>
         </section>

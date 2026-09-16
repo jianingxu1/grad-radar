@@ -114,6 +114,10 @@ describe("App", () => {
       screen.getByText(/every 15 minutes from 7:00 AM through 8:45 PM Pacific/i),
     ).toBeVisible();
     expect(screen.getByText(/visa or sponsorship assessment/i)).toBeVisible();
+    expect(
+      screen.getByText(/How do I set up Telegram notifications to get the latest postings\?/i),
+    ).toBeVisible();
+    expect(screen.getByText(/Stop notifications.*send \/stop to the bot/i)).toBeVisible();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -271,11 +275,22 @@ describe("App", () => {
     const accountMenu = await screen.findByLabelText("Account menu");
     expect(accountMenu).toHaveTextContent("user@example.com");
     expect(accountMenu).not.toHaveClass("button-secondary");
+    expect(screen.getByRole("button", { name: "Notifications" })).toBeVisible();
     fireEvent.click(accountMenu);
     const signOutButton = screen.getByRole("button", { name: "Sign out" });
     expect(signOutButton).toBeVisible();
     expect(signOutButton).toHaveClass("bg-transparent", "text-slate-700");
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    expect(await screen.findByRole("heading", { level: 2, name: "Notifications" })).toBeVisible();
+    expect(window.location.pathname).toBe("/settings/notifications");
     expect(screen.queryByLabelText("Sign in with Google")).not.toBeInTheDocument();
+  });
+
+  it("shows the login prompt on the notification page when signed out", () => {
+    window.history.replaceState({}, "", "/settings/notifications");
+    render(<App />);
+
+    expect(screen.getByText("Log in to set up Telegram notifications.")).toBeVisible();
   });
 
   it("shows connected notification controls for an active Telegram connection", async () => {
