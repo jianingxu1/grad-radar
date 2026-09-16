@@ -2,11 +2,42 @@
 
 ## Project structure
 
-- `docs/` — product design and phased roadmap.
-- `src/app/` — backend package; database models and source ingestion.
-- `web/` — Vite React and TypeScript public job feed.
+- `.github/workflows/` — CI/workflow automation. `ingest.yml` manually runs the
+  GitHub source ingestion job.
+- `docs/` — product and architecture notes. `system-design.md` is the main
+  architecture reference; `implementation-plan.md` tracks delivery progress.
+- `src/app/` — Python backend package.
+  - `main.py` creates the FastAPI app.
+  - `cli.py` runs source bootstrap and ingestion commands.
+  - `scheduler.py` runs scheduled ingestion and Telegram delivery.
+  - `api/` contains HTTP routes and response schemas.
+  - `config/` loads environment settings.
+  - `database/` contains SQLAlchemy models and session setup.
+  - `domain/` contains pure normalization and eligibility rules.
+  - `models/` contains validated internal data models.
+  - `repositories/` contains database persistence logic.
+  - `services/` contains auth, GitHub ingestion, notifications, and Telegram
+    delivery logic.
+  - `sources/` defines configured job trackers and their parsers.
+- `supabase/` — Supabase local config and SQL migrations. Migrations are the
+  schema authority for job postings, sources, and Telegram notification tables.
+- `tests/` — Python pytest suite, mirroring backend areas with unit and
+  integration tests. `tests/fixtures/` stores sample tracker files.
+- `web/` — Vite React and TypeScript frontend.
+  - `src/App.tsx` is the main feed, FAQ, auth, and notification-settings UI.
+  - `src/api.ts` contains API types and fetch helpers.
+  - `src/filterState.ts` keeps feed filters in the URL.
+  - `src/supabase.ts` creates the optional Supabase browser client.
+  - `public/` stores logo and icon assets.
+  - `vercel.json` rewrites SPA routes to `index.html`.
+- Root config files: `pyproject.toml`, `uv.lock`, `pyrightconfig.json`, and
+  `.pre-commit-config.yaml` define the Python toolchain. `web/package.json` and
+  `web/package-lock.json` define the frontend toolchain.
+- Env templates: `.env.example` for backend/shared settings and
+  `web/.env.example` for browser-exposed frontend settings. Never commit real
+  `.env` files.
 
-Document every new top-level project folder in this section.
+Document every new top-level project folder here.
 
 ## Development environment
 
