@@ -88,21 +88,28 @@ live sources.
 - Avoid premature abstractions and comments that merely restate the code.
   Comments should explain non-obvious decisions and constraints.
 
-## Commit conventions
+## Commit messages
 
-Use Conventional Commits for commit titles and pull request titles:
+Use Conventional Commits:
 
 ```text
-type(optional-scope): short imperative summary
+<type>(<scope>): <summary>
 ```
 
-Allowed types include `feat`, `fix`, `refactor`, `test`, `docs`, `chore`,
-`ci`, and `build`. Use a scope only when it adds clarity, such as `ingestion`,
-`sources`, `storage`, `notifications`, or `tooling`.
+Keep the summary short and describe what changed. Add a commit body explaining
+why the change was needed.
 
-- Keep titles lowercase, imperative, and under about 72 characters.
-- Do not end titles with a period.
-- For non-trivial work, add a blank line and a body explaining what changed and
-  why it changed. Wrap body lines at roughly 72 characters.
-- Mark intentional breaking changes with `!` in the title and a
-  `BREAKING CHANGE:` footer.
+Common types: `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `chore`, `ci`.
+
+Examples:
+
+```text
+feat(worker): add scheduled GitHub ingestion
+
+Fetch job listings every hour so new postings appear automatically.
+
+fix(jobs): normalize application URLs before deduplication
+
+Different trackers can point to the same job using different tracking URLs.
+Normalization prevents duplicate listings.
+```
