@@ -20,6 +20,7 @@ def test_send_message_uses_the_configured_destination() -> None:
         assert json.loads(route.calls[0].request.content) == {
             "chat_id": "-100123",
             "text": "A new job was found",
+            "parse_mode": "HTML",
         }
 
 

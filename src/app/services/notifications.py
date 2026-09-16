@@ -2,11 +2,14 @@
 
 import hashlib
 import logging
+import re
 import secrets
 from datetime import datetime, timedelta
+from html import escape
 from typing import Literal
 from uuid import UUID
 
+from bs4 import BeautifulSoup
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
@@ -25,6 +28,7 @@ logger = logging.getLogger(__name__)
 TOKEN_TTL = timedelta(minutes=10)
 TELEGRAM_MESSAGE_LIMIT = 4096
 _MAX_DISPLAY_FIELD_LENGTH = 512
+_TRACKER_HTML_TAG = re.compile(r"</?(?:a|b|em|i|span|strong)\b", re.IGNORECASE)
 StartConsumeResult = Literal[
     "connected",
     "already_connected",
@@ -293,16 +297,14 @@ def _record_failure(
 
 def _message_batches(jobs: list[JobPosting]) -> list[tuple[str, list[JobPosting]]]:
     messages: list[tuple[str, list[JobPosting]]] = []
-    current = "New GradRadar jobs:\n"
+    current = "<b>New GradRadar jobs</b>\n"
     current_jobs: list[JobPosting] = []
     for job in jobs:
         line = _job_line(job)
-        candidate = (
-            f"{current}\n\n{line}" if current != "New GradRadar jobs:\n" else f"{current}{line}"
-        )
-        if len(candidate) > TELEGRAM_MESSAGE_LIMIT and current != "New GradRadar jobs:\n":
+        candidate = f"{current}\n\n{line}" if current_jobs else f"{current}{line}"
+        if len(candidate) > TELEGRAM_MESSAGE_LIMIT and current_jobs:
             messages.append((current, current_jobs))
-            current = f"New GradRadar jobs (continued):\n{line}"
+            current = f"<b>New GradRadar jobs (continued)</b>\n{line}"
             current_jobs = [job]
         else:
             current = candidate
@@ -313,15 +315,34 @@ def _message_batches(jobs: list[JobPosting]) -> list[tuple[str, list[JobPosting]
 
 
 def _job_line(job: JobPosting) -> str:
-    company = _truncate(job.company_name, _MAX_DISPLAY_FIELD_LENGTH)
-    title = _truncate(job.title, _MAX_DISPLAY_FIELD_LENGTH)
-    location = _truncate(job.location, _MAX_DISPLAY_FIELD_LENGTH)
-    prefix = f"{company} — {title}\n{location}\n"
-    return f"{prefix}{_truncate(job.apply_url, TELEGRAM_MESSAGE_LIMIT - len(prefix) - 64)}"
+    company = _escape_html(job.company_name, _MAX_DISPLAY_FIELD_LENGTH)
+    title = _escape_html(job.title, _MAX_DISPLAY_FIELD_LENGTH)
+    location = _escape_html(job.location, _MAX_DISPLAY_FIELD_LENGTH)
+    prefix = f"<b>{company}</b> — {title}\n{location}\n"
+    apply_url = _escape_html(
+        job.apply_url,
+        TELEGRAM_MESSAGE_LIMIT - len(prefix) - len('<a href="">Apply</a>'),
+        quote=True,
+    )
+    return f'{prefix}<a href="{apply_url}">Apply</a>'
 
 
-def _truncate(value: str, limit: int) -> str:
-    return value if len(value) <= limit else f"{value[: limit - 1]}…"
+def _escape_html(value: str, limit: int, *, quote: bool = False) -> str:
+    plain_text = (
+        BeautifulSoup(value, "html.parser").get_text(" ", strip=True)
+        if _TRACKER_HTML_TAG.search(value)
+        else value
+    )
+    escaped = escape(plain_text, quote=quote)
+    if len(escaped) <= limit:
+        return escaped
+    truncated = ""
+    for character in plain_text:
+        candidate = escape(f"{truncated}{character}…", quote=quote)
+        if len(candidate) > limit:
+            break
+        truncated += character
+    return escape(f"{truncated}…", quote=quote)
 
 
 def _token_hash(token: str) -> str:

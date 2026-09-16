@@ -1,7 +1,7 @@
 <div align="center">
   <h1>GradRadar</h1>
   <p>
-    GradRadar helps U.S. new grads find software engineering roles early by bringing the newest listings from multiple job trackers into one place.
+    GradRadar helps U.S. new grads find software engineering roles early by bringing the newest listings from multiple job trackers into one place, with opt-in Telegram notifications for new matches.
   </p>
   <img width="600" height="400" alt="GradRadar website" src="docs/images/gradradar-feed.png">
   <p>
@@ -13,7 +13,7 @@
 
 As a CS student looking for new-grad positions, I kept hearing the same advice: apply early. Once a role has thousands of applications, getting an interview is hard; so applying early is essential.
 
-I built GradRadar so I could check one place for the latest, deduplicated new grad job listings instead of manually refreshing several trackers. The goal is also to send opt-in Telegram alerts, so we don't miss an opportunity because we saw it too late.
+I built GradRadar so I could check one place for the latest, deduplicated new grad job listings instead of manually refreshing several trackers. It also sends opt-in Telegram alerts, so we don't miss an opportunity because we saw it too late.
 
 ## Tech stack
 
@@ -27,8 +27,8 @@ I built GradRadar so I could check one place for the latest, deduplicated new gr
 - Ingests new-grad SWE listings from the [SpeedyApply](https://github.com/speedyapply/2027-SWE-College-Jobs) and [Simplify](https://github.com/SimplifyJobs/New-Grad-Positions) GitHub trackers.
 - Keeps clearly U.S.-eligible roles, normalizes application URLs, and uses those URLs to deduplicate the same job across sources.
 - Stores the result and displays it in a searchable, filterable website with the original application link and tracker source.
-- Lets signed-in users opt in to private Telegram alerts. Alerts begin only after
-  connection confirmation and never backfill old jobs.
+- Sends opt-in private Telegram notifications to signed-in users when new jobs are found.
+  Notifications begin only after connection confirmation and never backfill old jobs.
 
 ## Roadmap
 
@@ -38,7 +38,7 @@ I built GradRadar so I could check one place for the latest, deduplicated new gr
 - [x] Build a searchable, filterable web feed and a read-only API.
 - [x] Add optional Google sign-in.
 - [x] Run the ingestion worker and database reliably in production, with health monitoring. [DONE]
-- [ ] [IN PROGRESS] Build opt-in Telegram alerts with connection confirmation, unsubscribe,
+- [x] Build opt-in Telegram alerts with connection confirmation, unsubscribe,
   retries, and duplicate-safe outbox delivery.
 - [ ] Add other notification channels.
 - [ ] Ingest postings directly from ATS platforms such as Ashby and Greenhouse.
