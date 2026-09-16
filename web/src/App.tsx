@@ -318,7 +318,7 @@ export function App() {
                     Notifications
                   </button>
                   <button
-                    className="w-full bg-red-600 text-left text-white hover:bg-red-700"
+                    className="w-full bg-transparent text-left text-slate-700 hover:bg-slate-100"
                     type="button"
                     onClick={() => void signOut()}
                   >

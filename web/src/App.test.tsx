@@ -274,7 +274,7 @@ describe("App", () => {
     fireEvent.click(accountMenu);
     const signOutButton = screen.getByRole("button", { name: "Sign out" });
     expect(signOutButton).toBeVisible();
-    expect(signOutButton).toHaveClass("bg-red-600", "text-white");
+    expect(signOutButton).toHaveClass("bg-transparent", "text-slate-700");
     expect(screen.queryByLabelText("Sign in with Google")).not.toBeInTheDocument();
   });
 
