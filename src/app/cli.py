@@ -1,10 +1,29 @@
 import argparse
+from datetime import UTC, datetime
+
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.config.settings import get_settings
 from app.database.session import create_session_factory, transaction
 from app.logging import configure_logging
-from app.services.github_ingestion import ingest_all
+from app.services.github_ingestion import IngestionSummary, ingest_all
+from app.services.notifications import deliver_pending
+from app.services.telegram import TelegramClient
 from app.sources.bootstrap import bootstrap_sources
+
+
+def ingest_and_deliver(
+    session_factory: sessionmaker[Session],
+    github_token: str | None,
+    telegram_bot_token: str | None,
+) -> list[IngestionSummary]:
+    summaries = ingest_all(session_factory, github_token)
+    with (
+        session_factory.begin() as session,
+        TelegramClient(telegram_bot_token) as telegram,
+    ):
+        deliver_pending(session, telegram, datetime.now(UTC))
+    return summaries
 
 
 def main() -> None:
@@ -15,7 +34,9 @@ def main() -> None:
     configure_logging(settings.log_level)
     session_factory = create_session_factory(settings)
     if command == "ingest":
-        summaries = ingest_all(session_factory, settings.github_token)
+        summaries = ingest_and_deliver(
+            session_factory, settings.github_token, settings.telegram_bot_token
+        )
         print(*summaries, sep="\n")
         if all(summary.status == "failed" for summary in summaries):
             raise SystemExit(1)
