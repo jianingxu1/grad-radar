@@ -36,8 +36,34 @@ def test_message_batches_render_safe_telegram_html() -> None:
 
     assert jobs == [job]
     assert message == (
-        "<b>New GradRadar jobs</b>\n"
-        "<b>Pay &amp; Co</b> — Engineer &lt;Platform&gt;\n"
-        "San Jose, CA &amp; Remote\n"
-        '<a href="https://jobs.example.com/apply?source=grad&amp;role=engineer">Apply</a>'
+        "🔔 1 new job found\n\n"
+        "<b>Pay &amp; Co</b>\n"
+        "💼 Engineer &lt;Platform&gt;\n"
+        "📍 San Jose, CA &amp; Remote\n"
+        '🔗 <a href="https://jobs.example.com/apply?source=grad&amp;role=engineer">Apply</a>'
     )
+
+
+def test_message_batches_include_count_and_separator() -> None:
+    jobs = [
+        SimpleNamespace(
+            id=uuid4(),
+            company_name="RTX",
+            title="System Integration Software Engineer I",
+            location="Cedar Rapids, IA",
+            apply_url="https://jobs.example.com/rtx",
+        ),
+        SimpleNamespace(
+            id=uuid4(),
+            company_name="Headlands Tech Holdings",
+            title="C++ Software Developer, New Grad",
+            location="Chicago, IL",
+            apply_url="https://jobs.example.com/headlands",
+        ),
+    ]
+
+    message, message_jobs = _message_batches(cast(list[JobPosting], jobs))[0]
+
+    assert message_jobs == jobs
+    assert message.startswith("🔔 2 new jobs found\n\n<b>RTX</b>")
+    assert "\n\n──────────────\n\n<b>Headlands Tech Holdings</b>" in message

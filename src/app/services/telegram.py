@@ -64,7 +64,12 @@ class TelegramClient:
         try:
             response = self._client.post(
                 f"https://api.telegram.org/bot{self._bot_token}/sendMessage",
-                json={"chat_id": destination, "text": text, "parse_mode": "HTML"},
+                json={
+                    "chat_id": destination,
+                    "text": text,
+                    "parse_mode": "HTML",
+                    "link_preview_options": {"is_disabled": True},
+                },
             )
         except httpx.HTTPError as error:
             return TelegramDelivery(False, error=f"Telegram request failed: {error}")

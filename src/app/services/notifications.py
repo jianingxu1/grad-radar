@@ -296,35 +296,39 @@ def _record_failure(
 
 
 def _message_batches(jobs: list[JobPosting]) -> list[tuple[str, list[JobPosting]]]:
-    messages: list[tuple[str, list[JobPosting]]] = []
-    current = "<b>New GradRadar jobs</b>\n"
+    batches: list[list[JobPosting]] = []
     current_jobs: list[JobPosting] = []
     for job in jobs:
-        line = _job_line(job)
-        candidate = f"{current}\n\n{line}" if current_jobs else f"{current}{line}"
-        if len(candidate) > TELEGRAM_MESSAGE_LIMIT and current_jobs:
-            messages.append((current, current_jobs))
-            current = f"<b>New GradRadar jobs (continued)</b>\n{line}"
+        candidate_jobs = [*current_jobs, job]
+        if len(_render_message(candidate_jobs)) > TELEGRAM_MESSAGE_LIMIT and current_jobs:
+            batches.append(current_jobs)
             current_jobs = [job]
         else:
-            current = candidate
-            current_jobs.append(job)
+            current_jobs = candidate_jobs
     if current_jobs:
-        messages.append((current, current_jobs))
-    return messages
+        batches.append(current_jobs)
+    return [(_render_message(batch), batch) for batch in batches]
+
+
+def _render_message(jobs: list[JobPosting]) -> str:
+    count = len(jobs)
+    noun = "job" if count == 1 else "jobs"
+    return f"🔔 {count} new {noun} found\n\n" + "\n\n──────────────\n\n".join(
+        _job_line(job) for job in jobs
+    )
 
 
 def _job_line(job: JobPosting) -> str:
     company = _escape_html(job.company_name, _MAX_DISPLAY_FIELD_LENGTH)
     title = _escape_html(job.title, _MAX_DISPLAY_FIELD_LENGTH)
     location = _escape_html(job.location, _MAX_DISPLAY_FIELD_LENGTH)
-    prefix = f"<b>{company}</b> — {title}\n{location}\n"
+    prefix = f"<b>{company}</b>\n💼 {title}\n📍 {location}\n"
     apply_url = _escape_html(
         job.apply_url,
         TELEGRAM_MESSAGE_LIMIT - len(prefix) - len('<a href="">Apply</a>'),
         quote=True,
     )
-    return f'{prefix}<a href="{apply_url}">Apply</a>'
+    return f'{prefix}🔗 <a href="{apply_url}">Apply</a>'
 
 
 def _escape_html(value: str, limit: int, *, quote: bool = False) -> str:

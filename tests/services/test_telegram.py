@@ -21,6 +21,7 @@ def test_send_message_uses_the_configured_destination() -> None:
             "chat_id": "-100123",
             "text": "A new job was found",
             "parse_mode": "HTML",
+            "link_preview_options": {"is_disabled": True},
         }
 
 
