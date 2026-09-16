@@ -75,6 +75,7 @@ describe("App", () => {
     expect(applicationLink).toHaveAttribute("target", "_blank");
     expect(applicationLink).toHaveAttribute("rel", "noreferrer");
     expect(screen.getByLabelText("Sign in with Google")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Notifications" })).toBeVisible();
   });
 
   it("keeps the newest filter result when an older request resolves late", async () => {
@@ -286,11 +287,11 @@ describe("App", () => {
     expect(screen.queryByLabelText("Sign in with Google")).not.toBeInTheDocument();
   });
 
-  it("shows the login prompt on the notification page when signed out", () => {
+  it("shows a login prompt on the notification page when signed out", () => {
     window.history.replaceState({}, "", "/settings/notifications");
     render(<App />);
 
-    expect(screen.getByText("Log in to set up Telegram notifications.")).toBeVisible();
+    expect(screen.getByText("Don’t miss new jobs — sign in for Telegram alerts.")).toBeVisible();
   });
 
   it("shows connected notification controls for an active Telegram connection", async () => {

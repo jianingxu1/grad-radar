@@ -301,14 +301,14 @@ export function App() {
             <button className="button-secondary" onClick={() => navigate("/faq")}>
               FAQ
             </button>
+            <button
+              className="button-secondary"
+              onClick={() => navigate("/settings/notifications")}
+            >
+              Notifications
+            </button>
             {user ? (
               <>
-                <button
-                  className="button-secondary"
-                  onClick={() => navigate("/settings/notifications")}
-                >
-                  Notifications
-                </button>
                 <details className="relative">
                   <summary
                     className="cursor-pointer list-none rounded px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
@@ -603,7 +603,9 @@ function NotificationSettingsPage({
           </p>
         </section>
         {!user ? (
-          <p className="mt-4 text-slate-600">Log in to set up Telegram notifications.</p>
+          <p className="mt-4 max-w-2xl text-slate-600">
+            Don’t miss new jobs — sign in for Telegram alerts.
+          </p>
         ) : (
           <section className="mt-6 rounded border border-slate-200 p-6" aria-live="polite">
             {error && (
