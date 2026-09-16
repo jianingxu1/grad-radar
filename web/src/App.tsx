@@ -318,7 +318,7 @@ export function App() {
                     Notifications
                   </button>
                   <button
-                    className="w-full bg-transparent text-left text-slate-700 hover:bg-slate-100"
+                    className="w-full bg-red-600 text-left text-white hover:bg-red-700"
                     type="button"
                     onClick={() => void signOut()}
                   >
@@ -645,7 +645,7 @@ function NotificationState({
           Telegram alerts are connected. You will receive new GradRadar jobs after each ingestion
           cycle.
         </p>
-        <button className="mt-4" disabled={busy} onClick={onStop}>
+        <button className="mt-4 bg-red-600 hover:bg-red-700" disabled={busy} onClick={onStop}>
           Stop notifications
         </button>
       </>

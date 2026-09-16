@@ -272,7 +272,9 @@ describe("App", () => {
     expect(accountMenu).toHaveTextContent("user@example.com");
     expect(accountMenu).not.toHaveClass("button-secondary");
     fireEvent.click(accountMenu);
-    expect(screen.getByRole("button", { name: "Sign out" })).toBeVisible();
+    const signOutButton = screen.getByRole("button", { name: "Sign out" });
+    expect(signOutButton).toBeVisible();
+    expect(signOutButton).toHaveClass("bg-red-600", "text-white");
     expect(screen.queryByLabelText("Sign in with Google")).not.toBeInTheDocument();
   });
 
@@ -298,7 +300,9 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Back to jobs" })).toBeVisible();
     expect(screen.getByText(/Manage Telegram alerts/i)).toBeVisible();
     expect(await screen.findByText(/Telegram alerts are connected/i)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Stop notifications" })).toBeVisible();
+    const stopNotificationsButton = screen.getByRole("button", { name: "Stop notifications" });
+    expect(stopNotificationsButton).toBeVisible();
+    expect(stopNotificationsButton).toHaveClass("bg-red-600", "hover:bg-red-700");
   });
 
   it("refreshes an expired session before retrying notification settings", async () => {
