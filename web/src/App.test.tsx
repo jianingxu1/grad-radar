@@ -268,8 +268,10 @@ describe("App", () => {
     await waitFor(() => expect(supabaseMock.authStateListeners).toHaveLength(1));
     supabaseMock.authStateListeners[0]?.("SIGNED_IN", session);
 
-    expect(await screen.findByLabelText("Account menu")).toHaveTextContent("user@example.com");
-    fireEvent.click(screen.getByLabelText("Account menu"));
+    const accountMenu = await screen.findByLabelText("Account menu");
+    expect(accountMenu).toHaveTextContent("user@example.com");
+    expect(accountMenu).not.toHaveClass("button-secondary");
+    fireEvent.click(accountMenu);
     expect(screen.getByRole("button", { name: "Sign out" })).toBeVisible();
     expect(screen.queryByLabelText("Sign in with Google")).not.toBeInTheDocument();
   });

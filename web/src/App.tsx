@@ -304,7 +304,7 @@ export function App() {
             {user ? (
               <details className="relative">
                 <summary
-                  className="button-secondary cursor-pointer list-none"
+                  className="cursor-pointer list-none rounded px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
                   aria-label="Account menu"
                 >
                   {user.email} ▾
