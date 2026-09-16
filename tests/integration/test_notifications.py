@@ -42,6 +42,25 @@ def test_disabled_connection_can_reconnect_with_the_same_private_chat(
         assert connection_state(session, user_id, now)[0] == "connected"
 
 
+def test_start_link_accepts_telegram_ids_larger_than_a_postgres_integer(
+    session_factory: sessionmaker[Session],
+) -> None:
+    now = datetime.now(UTC)
+    telegram_user_id = 7_773_528_773
+    telegram_chat_id = 7_773_528_773
+    with session_factory.begin() as session:
+        user_id = _create_auth_user(session)
+        token, _ = create_link_intent(session, user_id, now)
+
+        assert consume_start(session, token, telegram_user_id, telegram_chat_id, now) == "connected"
+
+    with session_factory() as session:
+        connection = session.scalar(select(TelegramConnection))
+        assert connection is not None
+        assert connection.telegram_user_id == telegram_user_id
+        assert connection.telegram_chat_id == telegram_chat_id
+
+
 def test_start_link_reports_telegram_user_conflict_before_insert(
     session_factory: sessionmaker[Session],
 ) -> None:

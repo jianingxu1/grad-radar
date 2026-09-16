@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import FetchedValue, ForeignKey, MetaData, String, Text
+from sqlalchemy import BigInteger, FetchedValue, ForeignKey, MetaData, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -61,8 +61,8 @@ class TelegramConnection(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, server_default=FetchedValue())
     user_id: Mapped[UUID]
-    telegram_user_id: Mapped[int] = mapped_column(unique=True)
-    telegram_chat_id: Mapped[int] = mapped_column(unique=True)
+    telegram_user_id: Mapped[int] = mapped_column(BigInteger, unique=True)
+    telegram_chat_id: Mapped[int] = mapped_column(BigInteger, unique=True)
     status: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime]
     activated_at: Mapped[datetime | None]
