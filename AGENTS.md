@@ -51,6 +51,15 @@ Document every new top-level project folder here.
 
 ## Common commands
 
+### Run locally
+
+```bash
+uv sync
+uv run uvicorn app.main:app --reload  # Backend: http://127.0.0.1:8000
+npm --prefix web ci
+npm --prefix web run dev              # Frontend: http://localhost:5173
+```
+
 ```bash
 uv sync
 uv run ruff check .
