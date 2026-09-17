@@ -7,7 +7,7 @@
   <p>
     <a href="https://gradradar-web.vercel.app">Live website</a>  
   </p>
-  <img width="300" alt="GradRadar Telegram notification showing new job matches" src="docs/images/telegram-notifications.jpeg">
+  <img width="200" height="425" alt="GradRadar Telegram notification showing new job matches" src="docs/images/telegram-notifications.jpeg">
   <p><sub>Opt-in Telegram notifications for new job matches.</sub></p>
 </div>
 
