@@ -1,13 +1,13 @@
-# GradRadar Contributor Guide
+# GradRadar contributor guide
 
 ## Project structure
 
-- `.github/workflows/` — CI/workflow automation. `ingest.yml` manually runs the
-  GitHub source ingestion job.
-- `docs/` — product and architecture notes. `system-design.md` is the main
-  architecture reference; `implementation-plan.md` tracks delivery progress;
-  `frontend-testing.md` is the local browser testing checklist.
-- `src/app/` — Python backend package.
+- `.github/workflows/` contains CI workflows. `ingest.yml` runs GitHub source
+  ingestion when triggered manually.
+- `docs/` contains product and architecture notes. Start with `system-design.md`
+  for the architecture, `implementation-plan.md` for delivery progress, and
+  `frontend-testing.md` for local browser checks.
+- `src/app/` contains the Python backend.
   - `main.py` creates the FastAPI app.
   - `cli.py` runs source bootstrap and ingestion commands.
   - `scheduler.py` runs scheduled ingestion and Telegram delivery.
@@ -20,23 +20,22 @@
   - `services/` contains auth, GitHub ingestion, notifications, and Telegram
     delivery logic.
   - `sources/` defines configured job trackers and their parsers.
-- `supabase/` — Supabase local config and SQL migrations. Migrations are the
-  schema authority for job postings, sources, and Telegram notification tables.
-- `tests/` — Python pytest suite, mirroring backend areas with unit and
-  integration tests. `tests/fixtures/` stores sample tracker files.
-- `web/` — Vite React and TypeScript frontend.
+- `supabase/` contains local Supabase config and SQL migrations. The migrations
+  define the job posting, source, and Telegram notification tables.
+- `tests/` contains Python unit and integration tests for the backend.
+  `tests/fixtures/` stores sample tracker files.
+- `web/` contains the Vite, React, and TypeScript frontend.
   - `src/App.tsx` is the main feed, FAQ, auth, and notification-settings UI.
   - `src/api.ts` contains API types and fetch helpers.
   - `src/filterState.ts` keeps feed filters in the URL.
   - `src/supabase.ts` creates the optional Supabase browser client.
   - `public/` stores logo and icon assets.
   - `vercel.json` rewrites SPA routes to `index.html`.
-- Root config files: `pyproject.toml`, `uv.lock`, `pyrightconfig.json`, and
-  `.pre-commit-config.yaml` define the Python toolchain. `web/package.json` and
-  `web/package-lock.json` define the frontend toolchain.
-- Env templates: `.env.example` for backend/shared settings and
-  `web/.env.example` for browser-exposed frontend settings. Never commit real
-  `.env` files.
+- `pyproject.toml`, `uv.lock`, `pyrightconfig.json`, and
+  `.pre-commit-config.yaml` configure Python dependencies and checks.
+  `web/package.json` and `web/package-lock.json` configure the frontend.
+- `.env.example` lists backend and shared settings. `web/.env.example` lists
+  browser-exposed settings. Never commit real `.env` files.
 
 Document every new top-level project folder here.
 
@@ -62,7 +61,6 @@ npm --prefix web run dev              # Frontend: http://localhost:5173
 ```
 
 ```bash
-uv sync
 uv run ruff check .
 uv run ruff format .
 uv run pyright
@@ -75,13 +73,12 @@ npm --prefix web run test
 
 ## Quality checks
 
-Pre-commit automatically runs Ruff and Pyright for staged Python changes. Run
-`uv run pre-commit run --all-files` when validating the complete repository
-manually.
+Pre-commit runs Ruff and Pyright on staged Python changes. Run
+`uv run pre-commit run --all-files` to check the whole repository.
 
-Run `uv run pytest` after any feature, bug fix, refactor, test change, or
-dependency change that can affect application behavior, and before opening a
-pull request. Tests are not required for documentation-only changes.
+Run `uv run pytest` after a feature, bug fix, refactor, test change, or dependency
+change that can affect application behavior. Run it before opening a pull
+request. Documentation-only changes do not need tests.
 
 For frontend browser checks, follow [docs/frontend-testing.md](docs/frontend-testing.md).
 
@@ -92,13 +89,13 @@ live sources.
 
 - Every new feature and behavior-changing bug fix must include focused unit
   tests. Update existing tests when changing established behavior.
-- Prefer small, single-purpose functions and modules with clear boundaries.
+- Keep each function and module focused on one job.
 - Use descriptive names and type annotations at public and external-data
   boundaries.
 - Keep fetching and other side effects separate from normalization and business
   logic so the latter stays straightforward to test.
-- Avoid premature abstractions and comments that merely restate the code.
-  Comments should explain non-obvious decisions and constraints.
+- Add abstractions when they simplify shared behavior. Use comments to explain
+  decisions and constraints that the code does not make clear.
 
 ## Commit messages
 
