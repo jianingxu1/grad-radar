@@ -5,7 +5,8 @@
 - `.github/workflows/` — CI/workflow automation. `ingest.yml` manually runs the
   GitHub source ingestion job.
 - `docs/` — product and architecture notes. `system-design.md` is the main
-  architecture reference; `implementation-plan.md` tracks delivery progress.
+  architecture reference; `implementation-plan.md` tracks delivery progress;
+  `frontend-testing.md` is the local browser testing checklist.
 - `src/app/` — Python backend package.
   - `main.py` creates the FastAPI app.
   - `cli.py` runs source bootstrap and ingestion commands.
@@ -81,6 +82,8 @@ manually.
 Run `uv run pytest` after any feature, bug fix, refactor, test change, or
 dependency change that can affect application behavior, and before opening a
 pull request. Tests are not required for documentation-only changes.
+
+For frontend browser checks, follow [docs/frontend-testing.md](docs/frontend-testing.md).
 
 External HTTP calls in tests must be mocked with `respx` rather than calling
 live sources.
