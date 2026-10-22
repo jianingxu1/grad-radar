@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from sqlalchemy import Select, case, exists, func, or_, select, text
+from sqlalchemy import case, exists, func, or_, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.api.schemas import (
@@ -103,7 +103,7 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         if sources:
             source_position = source_position.where(Source.name.in_(sources))
             source_order = source_order.where(Source.name.in_(sources))
-        statement: Select[tuple[JobPosting]] = select(JobPosting).where(exists(source_link))
+        statement = select(JobPosting).where(exists(source_link))
         if q:
             pattern = f"%{q.strip()}%"
             statement = statement.where(

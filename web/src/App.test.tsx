@@ -316,7 +316,9 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Back to jobs" })).toBeVisible();
     expect(screen.getByText(/Manage Telegram alerts/i)).toBeVisible();
     expect(
-      await screen.findByText(/You’ll receive a message whenever GradRadar detects a new job posting/i),
+      await screen.findByText(
+        /You’ll receive a message whenever GradRadar detects a new job posting/i,
+      ),
     ).toBeVisible();
     const stopNotificationsButton = screen.getByRole("button", { name: "Stop notifications" });
     expect(stopNotificationsButton).toBeVisible();
