@@ -267,7 +267,7 @@ export function App() {
     return <FaqPage onNavigate={navigate} />;
   }
   if (path === "/settings/notifications") {
-    return <NotificationSettingsPage user={user} onNavigate={navigate} />;
+    return <NotificationSettingsPage key={user?.id ?? "signed-out"} user={user} onNavigate={navigate} />;
   }
 
   const pageCount = page ? Math.max(1, Math.ceil(page.total / PAGE_SIZE)) : 1;

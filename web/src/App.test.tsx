@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const supabaseMock = vi.hoisted(() => {
@@ -358,6 +358,73 @@ describe("App", () => {
     const stopNotificationsButton = screen.getByRole("button", { name: "Stop notifications" });
     expect(stopNotificationsButton).toBeVisible();
     expect(stopNotificationsButton).toHaveClass("bg-red-600", "hover:bg-red-700");
+  });
+
+  it("clears notification settings when the signed-in account changes", async () => {
+    window.history.replaceState({}, "", "/settings/notifications");
+    let session = { user: { id: "user-1", email: "first@example.com" }, access_token: "first" };
+    supabaseMock.auth.getSession.mockImplementation(async () => ({ data: { session }, error: null }));
+    let resolveSecond: ((value: { ok: boolean; json: () => Promise<unknown> }) => void) | undefined;
+    const secondResponse = new Promise<{ ok: boolean; json: () => Promise<unknown> }>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "connected", expires_at: null }),
+      })
+      .mockReturnValueOnce(secondResponse);
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+
+    expect(await screen.findByRole("button", { name: "Stop notifications" })).toBeVisible();
+    session = { user: { id: "user-2", email: "second@example.com" }, access_token: "second" };
+    act(() => supabaseMock.authStateListeners[0]?.("SIGNED_IN", session));
+
+    expect(screen.queryByRole("button", { name: "Stop notifications" })).not.toBeInTheDocument();
+    expect(screen.getByText("Loading notification settings…")).toBeVisible();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      resolveSecond?.({
+        ok: true,
+        json: async () => ({ status: "not_connected", expires_at: null }),
+      });
+    });
+    expect(await screen.findByRole("button", { name: "Connect Telegram" })).toBeVisible();
+  });
+
+  it("ignores a previous account's late notification settings response", async () => {
+    window.history.replaceState({}, "", "/settings/notifications");
+    let session = { user: { id: "user-1", email: "first@example.com" }, access_token: "first" };
+    supabaseMock.auth.getSession.mockImplementation(async () => ({ data: { session }, error: null }));
+    let resolveFirst: ((value: { ok: boolean; json: () => Promise<unknown> }) => void) | undefined;
+    const firstResponse = new Promise<{ ok: boolean; json: () => Promise<unknown> }>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(firstResponse)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "not_connected", expires_at: null }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    session = { user: { id: "user-2", email: "second@example.com" }, access_token: "second" };
+    act(() => supabaseMock.authStateListeners[0]?.("SIGNED_IN", session));
+    expect(await screen.findByRole("button", { name: "Connect Telegram" })).toBeVisible();
+
+    await act(async () => {
+      resolveFirst?.({
+        ok: true,
+        json: async () => ({ status: "connected", expires_at: null }),
+      });
+    });
+    expect(screen.getByRole("button", { name: "Connect Telegram" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Stop notifications" })).not.toBeInTheDocument();
   });
 
   it("refreshes an expired session before retrying notification settings", async () => {
