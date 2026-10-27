@@ -23,7 +23,10 @@
 - `tests/` contains Python unit and integration tests for the backend.
   `tests/fixtures/` stores sample tracker files.
 - `web/` contains the Vite, React, and TypeScript frontend.
-  - `src/App.tsx` is the main feed, FAQ, auth, and notification-settings UI.
+  - `src/App.tsx` coordinates routing, authentication, and feed state.
+  - `src/components/` contains the feed header, filters, listings, pagination,
+    and shared presentation helpers.
+  - `src/pages/` contains the FAQ and notification settings pages.
   - `src/api.ts` contains API types and fetch helpers.
   - `src/filterState.ts` keeps feed filters in the URL.
   - `src/supabase.ts` creates the optional Supabase browser client.
