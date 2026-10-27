@@ -305,7 +305,7 @@ export function App() {
               className="button-secondary"
               onClick={() => navigate("/settings/notifications")}
             >
-              Notifications
+              {user ? "Notifications" : "Sign in to set up and receive telegram notifications!"}
             </button>
             {user ? (
               <>

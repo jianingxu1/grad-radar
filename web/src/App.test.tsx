@@ -75,7 +75,11 @@ describe("App", () => {
     expect(applicationLink).toHaveAttribute("target", "_blank");
     expect(applicationLink).toHaveAttribute("rel", "noreferrer");
     expect(screen.getByLabelText("Sign in with Google")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Notifications" })).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "Sign in to set up and receive telegram notifications!",
+      }),
+    ).toBeVisible();
   });
 
   it("keeps the newest filter result when an older request resolves late", async () => {
