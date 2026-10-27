@@ -56,6 +56,29 @@ def test_speedyapply_parser_excludes_phd_specific_roles() -> None:
     assert result.ineligible == 1
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "## 2027 USA SWE New Graduate Positions",
+        """## 2027 USA SWE New Graduate Positions
+### FAANG+
+| Company | Position | Location | Posting | Age |
+| --- | --- | --- | --- | --- |
+""",
+    ],
+)
+def test_speedyapply_parser_rejects_empty_job_table(text: str) -> None:
+    with pytest.raises(ValueError, match="no job rows"):
+        SpeedyApplyParser().parse(text, datetime(2026, 1, 3, tzinfo=UTC))
+
+
+def test_simplify_parser_rejects_empty_job_table() -> None:
+    text = "## 💻 Software Engineering New Grad Roles\n<table><tr><th>Company</th></tr></table>"
+
+    with pytest.raises(ValueError, match="no parseable job rows"):
+        SimplifyParser().parse(text, datetime(2026, 1, 3, tzinfo=UTC))
+
+
 def test_parser_registry_resolves_known_sources() -> None:
     assert isinstance(get_parser(SourceName.SIMPLIFY), SimplifyParser)
     assert isinstance(get_parser(SourceName.SPEEDYAPPLY), SpeedyApplyParser)

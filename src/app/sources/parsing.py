@@ -103,6 +103,8 @@ def _parse_speedyapply(text: str, revision_at: datetime) -> ParseResult:
         source_position += 1
     if not found_target_section:
         raise ValueError("missing SpeedyApply new-grad heading")
+    if result.parsed == 0:
+        raise ValueError("SpeedyApply new-grad table has no job rows")
     return result
 
 
@@ -146,6 +148,8 @@ def _parse_simplify(text: str, revision_at: datetime) -> ParseResult:
             str(anchor["href"]),
             source_position,
         )
+    if result.parsed == 0:
+        raise ValueError("Simplify roles table has no parseable job rows")
     return result
 
 
