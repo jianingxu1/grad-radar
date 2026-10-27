@@ -82,6 +82,32 @@ describe("App", () => {
     ).toBeVisible();
   });
 
+  it("keeps every job column in a horizontally scrollable table", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    render(<App />);
+
+    const listings = await screen.findByRole("region", {
+      name: /Job listings, scroll horizontally/,
+    });
+    expect(listings).toHaveClass("overflow-x-auto");
+    expect(listings).toHaveAttribute("tabindex", "0");
+    const table = within(listings).getByRole("table");
+    expect(table).toHaveClass("min-w-[700px]", "lg:min-w-[900px]", "text-xs", "lg:text-sm");
+    for (const column of ["Company", "Role", "Location", "Listed", "Source"]) {
+      expect(within(table).getByRole("columnheader", { name: new RegExp(column) })).not.toHaveClass(
+        "hidden",
+      );
+    }
+    const row = within(table).getByRole("row", { name: /Figma/ });
+    expect(within(row).getAllByRole("cell")).toHaveLength(5);
+    expect(row).toHaveTextContent("Boston, MA");
+    expect(row).toHaveTextContent("Simplify");
+    expect(within(table).getByRole("button", { name: /Company/ })).toHaveClass(
+      "text-xs",
+      "lg:text-sm",
+    );
+  });
+
   it("keeps the newest filter result when an older request resolves late", async () => {
     let resolveFirstResponse: ((value: typeof response) => void) | undefined;
     const firstResponse = new Promise<typeof response>((resolve) => {
@@ -545,5 +571,33 @@ describe("App", () => {
     );
     expect(supabaseMock.auth.signInWithIdToken.mock.calls[0]?.[0].nonce).toHaveLength(44);
     script.remove();
+  });
+
+  it("uses a narrower Google button on small screens and updates it on resize", async () => {
+    vi.stubGlobal("innerWidth", 476);
+    const renderButton = vi.fn();
+    vi.stubGlobal("google", { accounts: { id: { initialize: vi.fn(), renderButton } } });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    render(<App />);
+
+    await waitFor(() =>
+      expect(renderButton).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        expect.objectContaining({ width: 200 }),
+      ),
+    );
+    expect(screen.getByLabelText("Sign in with Google").parentElement).toHaveClass(
+      "flex-wrap",
+      "max-w-full",
+    );
+
+    vi.stubGlobal("innerWidth", 800);
+    fireEvent.resize(window);
+    await waitFor(() =>
+      expect(renderButton).toHaveBeenLastCalledWith(
+        expect.any(HTMLElement),
+        expect.objectContaining({ width: 220 }),
+      ),
+    );
   });
 });

@@ -106,6 +106,7 @@ export function App() {
 
     let cancelled = false;
     let loadTimeout: ReturnType<typeof setTimeout> | undefined;
+    let buttonWidth = window.innerWidth < 640 ? 200 : 220;
     async function renderGoogleButton(): Promise<void> {
       if (!window.google || cancelled || !googleButtonRef.current) return;
       try {
@@ -135,12 +136,13 @@ export function App() {
           },
         });
         googleButtonRef.current.replaceChildren();
+        buttonWidth = window.innerWidth < 640 ? 200 : 220;
         window.google.accounts.id.renderButton(googleButtonRef.current, {
           theme: "outline",
           size: "large",
           text: "sign_in",
           shape: "rectangular",
-          width: 220,
+          width: buttonWidth,
         });
         setGoogleLoadError(false);
       } catch (reason: unknown) {
@@ -153,8 +155,14 @@ export function App() {
       'script[src="https://accounts.google.com/gsi/client"]',
     );
     const handleScriptError = () => setGoogleLoadError(true);
+    const handleResize = () => {
+      if ((window.innerWidth < 640 ? 200 : 220) !== buttonWidth) {
+        void renderGoogleButton();
+      }
+    };
     script?.addEventListener("error", handleScriptError);
     script?.addEventListener("load", renderGoogleButton);
+    window.addEventListener("resize", handleResize);
     if (window.google) {
       void renderGoogleButton();
     } else {
@@ -167,6 +175,7 @@ export function App() {
       if (loadTimeout) clearTimeout(loadTimeout);
       script?.removeEventListener("error", handleScriptError);
       script?.removeEventListener("load", renderGoogleButton);
+      window.removeEventListener("resize", handleResize);
     };
   }, [path, user]);
 
@@ -296,10 +305,7 @@ export function App() {
           <div className="flex items-center gap-3">
             <p className="text-sm text-slate-500">U.S. entry-level software engineering jobs</p>
           </div>
-          <div className="flex items-center gap-4">
-            <p className="text-sm text-slate-500">
-              {page ? `${page.total} roles` : "Loading roles…"}
-            </p>
+          <div className="flex max-w-full flex-wrap items-center gap-3 sm:gap-4">
             <button className="button-secondary" onClick={() => navigate("/faq")}>
               FAQ
             </button>
@@ -420,36 +426,46 @@ export function App() {
           )}
           {page?.items.length ? (
             <div>
-              <table className="w-full table-fixed border-collapse text-left">
-                <thead className="border-y border-slate-200 text-sm font-medium text-slate-500">
-                  <tr>
-                    <SortableHeader
-                      className="w-[34%] sm:w-[15%]"
-                      currentSort={filters.sortBy}
-                      direction={filters.sortDirection}
-                      label="Company"
-                      onClick={() => changeSort("company_name")}
-                      sortKey="company_name"
-                    />
-                    <th className="w-[66%] px-2 py-2 font-medium sm:w-[37%] sm:px-3">Role</th>
-                    <th className="hidden w-[18%] px-3 py-2 font-medium sm:table-cell">Location</th>
-                    <SortableHeader
-                      className="hidden w-[10%] sm:table-cell"
-                      currentSort={filters.sortBy}
-                      direction={filters.sortDirection}
-                      label="Listed"
-                      onClick={() => changeSort("listed_at")}
-                      sortKey="listed_at"
-                    />
-                    <th className="hidden w-[10%] px-3 py-2 font-medium sm:table-cell">Source</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {page.items.map((job) => (
-                    <JobRow job={job} key={job.id} />
-                  ))}
-                </tbody>
-              </table>
+              <p className="mb-2 text-xs text-slate-500 md:hidden">
+                Swipe across the table to see all columns.
+              </p>
+              <div
+                aria-label="Job listings, scroll horizontally to see all columns"
+                className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+                role="region"
+                tabIndex={0}
+              >
+                <table className="w-full min-w-[700px] table-fixed border-collapse text-left text-xs lg:min-w-[900px] lg:text-sm">
+                  <thead className="border-y border-slate-200 font-medium text-slate-500">
+                    <tr>
+                      <SortableHeader
+                        className="w-[16%]"
+                        currentSort={filters.sortBy}
+                        direction={filters.sortDirection}
+                        label="Company"
+                        onClick={() => changeSort("company_name")}
+                        sortKey="company_name"
+                      />
+                      <th className="w-[32%] px-3 py-2 font-medium">Role</th>
+                      <th className="w-[18%] px-3 py-2 font-medium">Location</th>
+                      <SortableHeader
+                        className="w-[10%]"
+                        currentSort={filters.sortBy}
+                        direction={filters.sortDirection}
+                        label="Listed"
+                        onClick={() => changeSort("listed_at")}
+                        sortKey="listed_at"
+                      />
+                      <th className="w-[24%] px-3 py-2 font-medium">Source</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {page.items.map((job) => (
+                      <JobRow job={job} key={job.id} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : null}
         </section>
@@ -872,7 +888,7 @@ function SortableHeader({
       className={`${className} px-3 py-2 font-medium`}
     >
       <button
-        className="bg-transparent p-0 text-slate-500 hover:bg-transparent hover:text-slate-950"
+        className="bg-transparent p-0 text-xs text-slate-500 hover:bg-transparent hover:text-slate-950 lg:text-sm"
         onClick={onClick}
       >
         {label}
@@ -906,11 +922,11 @@ function JobRow({ job }: { job: JobPage["items"][number] }) {
   const companyName = displayText(job.company_name);
 
   return (
-    <tr className="border-b border-slate-100 text-sm hover:bg-slate-50">
-      <td className="break-words px-2 py-3 font-medium sm:truncate sm:px-3" title={companyName}>
+    <tr className="border-b border-slate-100 hover:bg-slate-50">
+      <td className="break-words px-3 py-3 font-medium" title={companyName}>
         {companyName}
       </td>
-      <td className="break-words px-2 py-3 sm:truncate sm:px-3">
+      <td className="break-words px-3 py-3">
         <a
           href={job.apply_url}
           target="_blank"
@@ -922,17 +938,14 @@ function JobRow({ job }: { job: JobPage["items"][number] }) {
           {job.title}
         </a>
       </td>
-      <td className="hidden truncate px-3 py-3 text-slate-600 sm:table-cell" title={job.location}>
+      <td className="break-words px-3 py-3 text-slate-600" title={job.location}>
         {job.location}
       </td>
-      <td
-        className="hidden px-3 py-3 text-slate-500 sm:table-cell"
-        title={formatDate(job.listed_at)}
-      >
+      <td className="px-3 py-3 text-slate-500" title={formatDate(job.listed_at)}>
         {formatAge(job.listed_at)}
       </td>
       <td
-        className="hidden truncate px-3 py-3 text-slate-500 sm:table-cell"
+        className="break-words px-3 py-3 text-slate-500"
         title={job.sources.map((source) => sourceLabels[source.name]).join(", ")}
       >
         {job.sources.map((source, index) => (
