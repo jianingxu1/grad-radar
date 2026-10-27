@@ -607,23 +607,40 @@ function NotificationSettingsPage({
             Don’t miss new jobs — sign in for Telegram alerts.
           </p>
         ) : (
-          <section className="mt-6 rounded border border-slate-200 p-6" aria-live="polite">
-            {error && (
-              <p className="mb-4 text-red-700" role="alert">
-                {error}
+          <>
+            <section className="mt-6 rounded border border-slate-200 p-6" aria-live="polite">
+              {error && (
+                <p className="mb-4 text-red-700" role="alert">
+                  {error}
+                </p>
+              )}
+              {!settings ? (
+                <p>Loading notification settings…</p>
+              ) : (
+                <NotificationState
+                  settings={settings}
+                  busy={busy}
+                  onConnect={() => void connect()}
+                  onStop={() => void stop()}
+                />
+              )}
+            </section>
+            <section className="mt-8 max-w-2xl" aria-labelledby="telegram-setup-heading">
+              <h3 className="text-xl font-semibold" id="telegram-setup-heading">
+                How to set up Telegram alerts
+              </h3>
+              <ol className="mt-4 list-decimal space-y-2 pl-6 text-slate-700">
+                <li>Install Telegram on your phone or computer and sign in.</li>
+                <li>Click the Telegram button above to open the GradRadar bot in Telegram.</li>
+                <li>Press Start in the bot chat to finish connecting.</li>
+                <li>Once you receive “Telegram alerts connected.” in the chat, you are done!</li>
+              </ol>
+              <p className="mt-4 text-slate-600">
+                New job postings will be sent to that chat. Turn on Telegram notifications on your
+                phone or computer so you don’t miss them.
               </p>
-            )}
-            {!settings ? (
-              <p>Loading notification settings…</p>
-            ) : (
-              <NotificationState
-                settings={settings}
-                busy={busy}
-                onConnect={() => void connect()}
-                onStop={() => void stop()}
-              />
-            )}
-          </section>
+            </section>
+          </>
         )}
       </div>
     </main>

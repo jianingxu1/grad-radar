@@ -298,6 +298,34 @@ describe("App", () => {
     expect(screen.getByText("Don’t miss new jobs — sign in for Telegram alerts.")).toBeVisible();
   });
 
+  it("shows Telegram setup steps below the connection box", async () => {
+    window.history.replaceState({}, "", "/settings/notifications");
+    supabaseMock.auth.getSession.mockResolvedValue({
+      data: {
+        session: { user: { id: "user-1", email: "user@example.com" }, access_token: "token" },
+      },
+      error: null,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ status: "not_connected", expires_at: null }),
+      }),
+    );
+
+    render(<App />);
+
+    const connectButton = await screen.findByRole("button", { name: "Connect Telegram" });
+    const guide = screen.getByRole("region", { name: "How to set up Telegram alerts" });
+    expect(
+      connectButton.compareDocumentPosition(guide) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(within(guide).getAllByRole("listitem")).toHaveLength(4);
+    expect(within(guide).getByText(/Telegram alerts connected/)).toBeVisible();
+    expect(within(guide).getByText(/Turn on Telegram notifications/)).toBeVisible();
+  });
+
   it("shows connected notification controls for an active Telegram connection", async () => {
     window.history.replaceState({}, "", "/settings/notifications");
     supabaseMock.auth.getSession.mockResolvedValue({
