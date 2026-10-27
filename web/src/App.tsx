@@ -206,7 +206,7 @@ export function App() {
   }, []);
 
   function navigate(nextPath: "/" | "/faq" | "/settings/notifications"): void {
-    window.history.pushState({}, "", nextPath);
+    window.history.pushState({}, "", nextPath === "/" ? `/${filtersToSearch(filters)}` : nextPath);
     setPath(nextPath);
     if (nextPath === "/") {
       setLoading(true);
