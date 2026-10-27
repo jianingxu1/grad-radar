@@ -6,8 +6,8 @@ Railway runs `python -m app.cli ingest` every 15 minutes. Each run checks the
 GitHub sources, queues alerts for new jobs, and attempts pending Telegram
 deliveries.
 
-`.github/workflows/ingest.yml` provides a manual ingestion trigger through
-`workflow_dispatch`. It does not set the production schedule.
+`.github/workflows/ingest.yml` is a manual backup for running ingestion from
+GitHub Actions. It does not set or run the production schedule.
 
 ## Run locally
 
