@@ -39,6 +39,7 @@ class IngestionSummary:
     unknown: int | None = None
     malformed: int | None = None
     new_job_ids: list[UUID] = field(default_factory=list)
+    notifications_enqueued: int = 0
 
 
 def ingest_all(
@@ -49,12 +50,11 @@ def ingest_all(
     headers = {"Authorization": f"Bearer {github_token}"} if github_token else {}
     cycle_at = datetime.now(UTC)
     with httpx.Client(headers=headers, timeout=20) as client:
-        summaries = [ingest_source(session_factory, client, source) for source in SOURCES]
+        summaries = [
+            ingest_source(session_factory, client, source, cycle_at=cycle_at) for source in SOURCES
+        ]
     new_ids = [job_id for summary in summaries for job_id in summary.new_job_ids]
-    notifications_enqueued = 0
-    if new_ids:
-        with session_factory.begin() as session:
-            notifications_enqueued = enqueue_new_jobs(session, new_ids, cycle_at)
+    notifications_enqueued = sum(summary.notifications_enqueued for summary in summaries)
     logger.info(
         "ingestion.batch.completed duration_ms=%s successful=%s unchanged=%s failed=%s "
         "new_jobs=%s notifications_enqueued=%s",
@@ -69,9 +69,15 @@ def ingest_all(
 
 
 def ingest_source(
-    session_factory: sessionmaker[Session], client: httpx.Client, definition: SourceDefinition
+    session_factory: sessionmaker[Session],
+    client: httpx.Client,
+    definition: SourceDefinition,
+    *,
+    cycle_at: datetime | None = None,
 ) -> IngestionSummary:
     started_at = perf_counter()
+    if cycle_at is None:
+        cycle_at = datetime.now(UTC)
     sha: str | None = None
     logger.info("ingestion.source.started source=%s", definition.name)
     try:
@@ -130,8 +136,9 @@ def ingest_source(
         with session_factory.begin() as session:
             source = session.query(Source).filter_by(name=definition.name).one()
             _, new_job_ids = persist_postings_with_new_ids(session, parsed.postings, checked_at)
+            notifications_enqueued = enqueue_new_jobs(session, new_job_ids, cycle_at)
             source.last_processed_revision_sha = sha
-        _mark_source_successfully_synced(session_factory, definition, checked_at)
+            source.last_successful_sync_at = checked_at
         duration_ms = _duration_ms(started_at)
         summary = IngestionSummary(
             definition.name,
@@ -144,10 +151,12 @@ def ingest_source(
             unknown=parsed.unknown,
             malformed=parsed.malformed,
             new_job_ids=new_job_ids,
+            notifications_enqueued=notifications_enqueued,
         )
         logger.info(
             "ingestion.source.completed source=%s sha=%s duration_ms=%s parsed=%s "
-            "eligible=%s ineligible=%s unknown=%s malformed=%s new_jobs=%s",
+            "eligible=%s ineligible=%s unknown=%s malformed=%s new_jobs=%s "
+            "notifications_enqueued=%s",
             summary.source,
             summary.sha,
             summary.duration_ms,
@@ -157,6 +166,7 @@ def ingest_source(
             summary.unknown,
             summary.malformed,
             len(summary.new_job_ids),
+            summary.notifications_enqueued,
         )
         return summary
     except Exception as error:

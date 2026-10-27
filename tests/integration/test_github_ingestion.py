@@ -1,12 +1,22 @@
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID, uuid4
 
+import httpx
+import pytest
 import respx
 from httpx import Response
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.database.models import JobPosting, JobPostingSource, Source
+import app.services.github_ingestion as github_ingestion
+from app.database.models import (
+    JobPosting,
+    JobPostingSource,
+    NotificationOutbox,
+    Source,
+    TelegramConnection,
+)
 from app.services.github_ingestion import ingest_all, ingest_source
 from app.sources.definitions import SOURCES, SourceName
 
@@ -146,6 +156,75 @@ def test_ingestion_does_not_advance_source_revision_when_parsing_fails(
         assert source is not None
         assert source.last_processed_revision_sha is None
         assert source.last_successful_sync_at is None
+
+
+def test_enqueue_failure_rolls_back_jobs_and_sha_for_retry(
+    session_factory: sessionmaker[Session], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    definition = next(source for source in SOURCES if source.name is SourceName.SPEEDYAPPLY)
+    fixture = Path(__file__).parents[1] / "fixtures" / "speedyapply_new_grad.md"
+    sha = "9" * 40
+    cycle_at = datetime.now(UTC)
+    with session_factory.begin() as session:
+        user_id = uuid4()
+        session.execute(text("insert into auth.users (id) values (:id)"), {"id": user_id})
+        session.add(
+            TelegramConnection(
+                user_id=user_id,
+                telegram_user_id=101,
+                telegram_chat_id=202,
+                status="active",
+                created_at=datetime(2026, 1, 1, tzinfo=UTC),
+                activated_at=datetime(2026, 1, 1, tzinfo=UTC),
+                disabled_at=None,
+                updated_at=datetime(2026, 1, 1, tzinfo=UTC),
+            )
+        )
+
+    real_enqueue = github_ingestion.enqueue_new_jobs
+    attempts = 0
+
+    def fail_once(session: Session, job_ids: list[UUID], at: datetime) -> int:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise RuntimeError("outbox unavailable")
+        return real_enqueue(session, job_ids, at)
+
+    monkeypatch.setattr(github_ingestion, "enqueue_new_jobs", fail_once)
+    with respx.mock:
+        respx.get(
+            f"https://api.github.com/repos/{definition.repository}/commits",
+            params={"sha": definition.branch, "path": definition.file_path, "per_page": "1"},
+        ).mock(return_value=_commit_response(sha))
+        raw_route = respx.get(
+            f"https://raw.githubusercontent.com/{definition.repository}/{sha}/{definition.file_path}"
+        ).mock(return_value=Response(200, text=fixture.read_text()))
+
+        with httpx.Client() as client:
+            first = ingest_source(session_factory, client, definition, cycle_at=cycle_at)
+            assert first.status == "failed"
+            with session_factory() as session:
+                source = session.scalar(select(Source).where(Source.name == definition.name))
+                assert source is not None
+                assert source.last_processed_revision_sha is None
+                assert source.last_successful_sync_at is None
+                assert session.scalars(select(JobPosting)).all() == []
+                assert session.scalars(select(NotificationOutbox)).all() == []
+
+            second = ingest_source(session_factory, client, definition, cycle_at=cycle_at)
+
+    assert raw_route.call_count == 2
+    assert second.status == "success"
+    assert len(second.new_job_ids) == 3
+    assert second.notifications_enqueued == 3
+    with session_factory() as session:
+        source = session.scalar(select(Source).where(Source.name == definition.name))
+        assert source is not None
+        assert source.last_processed_revision_sha == sha
+        assert source.last_successful_sync_at is not None
+        assert len(session.scalars(select(JobPosting)).all()) == 3
+        assert len(session.scalars(select(NotificationOutbox)).all()) == 3
 
 
 def test_ingestion_does_not_mark_raw_fetch_failure_successful(
