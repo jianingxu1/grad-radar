@@ -363,7 +363,10 @@ describe("App", () => {
   it("clears notification settings when the signed-in account changes", async () => {
     window.history.replaceState({}, "", "/settings/notifications");
     let session = { user: { id: "user-1", email: "first@example.com" }, access_token: "first" };
-    supabaseMock.auth.getSession.mockImplementation(async () => ({ data: { session }, error: null }));
+    supabaseMock.auth.getSession.mockImplementation(async () => ({
+      data: { session },
+      error: null,
+    }));
     let resolveSecond: ((value: { ok: boolean; json: () => Promise<unknown> }) => void) | undefined;
     const secondResponse = new Promise<{ ok: boolean; json: () => Promise<unknown> }>((resolve) => {
       resolveSecond = resolve;
@@ -397,7 +400,10 @@ describe("App", () => {
   it("ignores a previous account's late notification settings response", async () => {
     window.history.replaceState({}, "", "/settings/notifications");
     let session = { user: { id: "user-1", email: "first@example.com" }, access_token: "first" };
-    supabaseMock.auth.getSession.mockImplementation(async () => ({ data: { session }, error: null }));
+    supabaseMock.auth.getSession.mockImplementation(async () => ({
+      data: { session },
+      error: null,
+    }));
     let resolveFirst: ((value: { ok: boolean; json: () => Promise<unknown> }) => void) | undefined;
     const firstResponse = new Promise<{ ok: boolean; json: () => Promise<unknown> }>((resolve) => {
       resolveFirst = resolve;
@@ -451,6 +457,35 @@ describe("App", () => {
     expect(await screen.findByRole("button", { name: "Connect Telegram" })).toBeVisible();
     expect(supabaseMock.auth.refreshSession).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[1]?.[1]?.headers).toMatchObject({ Authorization: "Bearer new" });
+  });
+
+  it("offers a retry when notification settings fail to load", async () => {
+    window.history.replaceState({}, "", "/settings/notifications");
+    supabaseMock.auth.getSession.mockResolvedValue({
+      data: {
+        session: { user: { id: "user-1", email: "user@example.com" }, access_token: "token" },
+      },
+      error: null,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "not_connected", expires_at: null }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Notification settings could not be loaded.",
+    );
+    expect(screen.queryByText("Loading notification settings…")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByRole("button", { name: "Connect Telegram" })).toBeVisible();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("clears an auth error after a successful sign-out", async () => {

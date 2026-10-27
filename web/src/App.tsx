@@ -267,7 +267,9 @@ export function App() {
     return <FaqPage onNavigate={navigate} />;
   }
   if (path === "/settings/notifications") {
-    return <NotificationSettingsPage key={user?.id ?? "signed-out"} user={user} onNavigate={navigate} />;
+    return (
+      <NotificationSettingsPage key={user?.id ?? "signed-out"} user={user} onNavigate={navigate} />
+    );
   }
 
   const pageCount = page ? Math.max(1, Math.ceil(page.total / PAGE_SIZE)) : 1;
@@ -533,6 +535,7 @@ function NotificationSettingsPage({
   onNavigate: (path: "/") => void;
 }) {
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -547,6 +550,8 @@ function NotificationSettingsPage({
         reason instanceof Error ? reason.message : "Notification settings could not be loaded.",
       );
       return null;
+    } finally {
+      setSettingsLoaded(true);
     }
   };
 
@@ -614,8 +619,17 @@ function NotificationSettingsPage({
                   {error}
                 </p>
               )}
-              {!settings ? (
+              {!settings && !settingsLoaded ? (
                 <p>Loading notification settings…</p>
+              ) : !settings ? (
+                <button
+                  onClick={() => {
+                    setSettingsLoaded(false);
+                    void load();
+                  }}
+                >
+                  Try again
+                </button>
               ) : (
                 <NotificationState
                   settings={settings}
