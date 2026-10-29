@@ -19,7 +19,14 @@ DEFAULT_FILTER: dict[str, list[str]] = {
         "full stack engineer",
         "fullstack engineer",
     ],
-    "level_terms": ["new grad", "new graduate", "university grad", "early career", "entry level"],
+    "level_terms": [
+        "new grad",
+        "new graduate",
+        "university grad",
+        "early career",
+        "entry level",
+        "emerging talent",
+    ],
     "exclude_terms": ["intern", "senior", "staff", "principal", "manager", "phd", "ph.d"],
 }
 

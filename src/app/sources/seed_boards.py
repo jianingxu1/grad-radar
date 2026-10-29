@@ -33,12 +33,20 @@ SEED_BOARDS = (
     SeedBoard("lever", "spotify", "Spotify"),
 )
 
+PREVIOUS_DEFAULT_FILTER = {
+    **DEFAULT_FILTER,
+    "level_terms": [term for term in DEFAULT_FILTER["level_terms"] if term != "emerging talent"],
+}
+
 
 def bootstrap_seed_boards(session: Session) -> int:
-    existing = set(session.scalars(select(Source.name)).all())
+    existing = {source.name: source for source in session.scalars(select(Source)).all()}
     created = 0
     for board in SEED_BOARDS:
         if board.name in existing:
+            source = existing[board.name]
+            if source.filter_config == PREVIOUS_DEFAULT_FILTER:
+                source.filter_config = DEFAULT_FILTER
             continue
         session.add(
             Source(

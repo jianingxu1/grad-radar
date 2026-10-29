@@ -51,6 +51,19 @@ def test_default_filter_accepts_shield_ai_new_graduate_titles() -> None:
     )
 
 
+def test_default_filter_accepts_openai_emerging_talent_role() -> None:
+    assert matches_board_filter(
+        job(
+            posting_id="55150071-fce8-48f5-aea4-14ed78b83511",
+            title="Software Engineer, Applied Emerging Talent (2027)",
+            location="San Francisco",
+            country="United States",
+            employment_type="FullTime",
+        ),
+        DEFAULT_FILTER,
+    )
+
+
 @pytest.mark.parametrize(
     "changes",
     [
