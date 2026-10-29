@@ -3,7 +3,10 @@ export function sourceLabel(name: string): string {
   if (name === "speedyapply") return "SpeedyApply";
   const [platform, board] = name.split(":", 2);
   if (!board) return name;
-  const company = board.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const knownCompanyNames: Record<string, string> = { openai: "OpenAI", shieldai: "Shield AI" };
+  const company =
+    knownCompanyNames[board] ??
+    board.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
   return `${company} (${platform[0]?.toUpperCase()}${platform.slice(1)})`;
 }
 
