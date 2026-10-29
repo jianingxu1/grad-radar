@@ -34,14 +34,15 @@ export function FeedFilters({
   return (
     <section aria-label="Feed filters" className="mb-3 border-b border-slate-200 pb-3">
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[0.35fr_0.2fr_1.75fr]">
-        <Field label="Search">
+        <Field label="Search" htmlFor="feed-search">
           <input
+            id="feed-search"
             value={filters.q}
             onChange={(event) => onChange({ q: event.target.value })}
             placeholder="Company or role"
           />
         </Field>
-        <Field label="Listed within">
+        <Field label="Listed within" role="group">
           <details className="group relative w-full max-w-96" ref={dateDetails}>
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded border border-slate-300 px-2.5 py-1.5 text-sm text-slate-800 marker:hidden">
               <span>{selectedDate?.label ?? "Any time"}</span>
@@ -75,7 +76,7 @@ export function FeedFilters({
             </div>
           </details>
         </Field>
-        <Field label="Source">
+        <Field label="Source" role="group">
           <details className="group relative w-full max-w-96">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded border border-slate-300 px-2.5 py-1.5 text-sm text-slate-800 marker:hidden">
               <span>
@@ -153,13 +154,21 @@ function SourceGroup({
 function Field({
   children,
   label,
+  htmlFor,
+  role,
 }: {
   children: ReactNode;
   label: string;
+  htmlFor?: string;
+  role?: "group";
 }) {
   return (
-    <div className="grid gap-1 text-xs font-medium text-slate-600">
-      <span>{label}</span>
+    <div
+      aria-label={role ? label : undefined}
+      className="grid gap-1 text-xs font-medium text-slate-600"
+      role={role}
+    >
+      {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : <span>{label}</span>}
       {children}
     </div>
   );
