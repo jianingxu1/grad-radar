@@ -45,3 +45,4 @@ I built GradRadar so I could check one place for the latest, deduplicated new gr
 - [ ] Add support for more company job board platforms.
 - [ ] Let admins add company board sources from the app.
 - [ ] Add an in-app feedback button so users can suggest improvements.
+- [ ] Add dark mode to the website.
