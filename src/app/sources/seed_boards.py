@@ -34,9 +34,14 @@ SEED_BOARDS = (
 )
 
 PREVIOUS_DEFAULT_FILTER = {
-    **DEFAULT_FILTER,
-    "level_terms": [term for term in DEFAULT_FILTER["level_terms"] if term != "emerging talent"],
+    "role_terms": DEFAULT_FILTER["role_terms"][:9],
+    "level_terms": DEFAULT_FILTER["level_terms"][:7],
+    "exclude_terms": DEFAULT_FILTER["exclude_terms"],
 }
+LEGACY_DEFAULT_FILTERS = (
+    PREVIOUS_DEFAULT_FILTER,
+    {**PREVIOUS_DEFAULT_FILTER, "level_terms": PREVIOUS_DEFAULT_FILTER["level_terms"][:-1]},
+)
 
 
 def bootstrap_seed_boards(session: Session) -> int:
@@ -45,7 +50,7 @@ def bootstrap_seed_boards(session: Session) -> int:
     for board in SEED_BOARDS:
         if board.name in existing:
             source = existing[board.name]
-            if source.filter_config == PREVIOUS_DEFAULT_FILTER:
+            if source.filter_config in LEGACY_DEFAULT_FILTERS:
                 source.filter_config = DEFAULT_FILTER
             continue
         session.add(

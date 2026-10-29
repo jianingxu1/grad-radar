@@ -1,5 +1,6 @@
 """Conservative, editable rules for public company-board jobs."""
 
+import re
 from typing import Any
 
 from app.domain.job_posting_normalization import normalize_apply_url
@@ -18,6 +19,10 @@ DEFAULT_FILTER: dict[str, list[str]] = {
         "front end engineer",
         "full stack engineer",
         "fullstack engineer",
+        "forward deployed engineer",
+        "ai platform engineer",
+        "ai/ml engineer",
+        "applied ai ncg",
     ],
     "level_terms": [
         "new grad",
@@ -26,6 +31,13 @@ DEFAULT_FILTER: dict[str, list[str]] = {
         "early career",
         "entry level",
         "emerging talent",
+        "graduate",
+        "university hire",
+        "early careers",
+        "campus",
+        "grads",
+        "ncg",
+        "software engineer i",
     ],
     "exclude_terms": ["intern", "senior", "staff", "principal", "manager", "phd", "ph.d"],
 }
@@ -49,7 +61,15 @@ def matches_board_filter(job: BoardJob, config: dict[str, list[str]]) -> bool:
     title = job.title.lower()
     if not any(term in title for term in config["role_terms"]):
         return False
-    if not any(term in title for term in config["level_terms"]):
+    level_in_title = any(
+        re.search(rf"(?<!\w){re.escape(term)}(?!\w)", title) for term in config["level_terms"]
+    )
+    recent_graduate_description = (
+        "graduate" in config["level_terms"]
+        and re.search(r"\bgraduation expected between\b", job.description, re.IGNORECASE)
+        is not None
+    )
+    if not (level_in_title or recent_graduate_description):
         return False
     if any(term in title for term in config["exclude_terms"]):
         return False

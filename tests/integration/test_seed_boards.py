@@ -3,7 +3,11 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.database.models import Source
 from app.sources.board_filter import DEFAULT_FILTER
-from app.sources.seed_boards import PREVIOUS_DEFAULT_FILTER, bootstrap_seed_boards
+from app.sources.seed_boards import (
+    LEGACY_DEFAULT_FILTERS,
+    PREVIOUS_DEFAULT_FILTER,
+    bootstrap_seed_boards,
+)
 
 
 def test_seed_boards_are_idempotent_and_do_not_reenable_disabled_sources(
@@ -44,3 +48,17 @@ def test_seed_boards_upgrade_only_unchanged_default_filters(
         assert openai is not None and notion is not None
         assert openai.filter_config == DEFAULT_FILTER
         assert notion.filter_config["level_terms"] == ["custom graduate"]
+
+
+def test_seed_boards_upgrade_older_default_filter(session_factory: sessionmaker[Session]) -> None:
+    with session_factory.begin() as session:
+        bootstrap_seed_boards(session)
+        stripe = session.scalar(select(Source).where(Source.name == "greenhouse:stripe"))
+        assert stripe is not None
+        stripe.filter_config = LEGACY_DEFAULT_FILTERS[1]
+    with session_factory.begin() as session:
+        bootstrap_seed_boards(session)
+    with session_factory() as session:
+        stripe = session.scalar(select(Source).where(Source.name == "greenhouse:stripe"))
+        assert stripe is not None
+        assert stripe.filter_config == DEFAULT_FILTER

@@ -65,10 +65,48 @@ def test_default_filter_accepts_openai_emerging_talent_role() -> None:
 
 
 @pytest.mark.parametrize(
+    "title",
+    [
+        "Software Engineer - University Hire 2027",
+        "Software Engineer – New College Graduate",
+        "Software Engineer | Early Careers, 2027 Start",
+        "Campus Software Engineer (Full-Time)",
+        "Software Engineer (2027 Grads)",
+        "Forward Deployed Engineer - New Grad (2027)",
+        "AI Platform Engineer, 2027 New Grad",
+        "AI/ML Engineer, 2027 New Grad",
+        "Applied AI NCG (Non Silicon)",
+        "Software Engineer I, Network",
+    ],
+)
+def test_default_filter_accepts_verified_early_career_title_variants(title: str) -> None:
+    assert matches_board_filter(job(title=title), DEFAULT_FILTER)
+
+
+def test_default_filter_accepts_generic_title_with_graduation_cohort() -> None:
+    assert matches_board_filter(
+        job(
+            title="Software Developer",
+            description=(
+                "A degree in Computer Science, with graduation expected between "
+                "December 2026 and June 2027."
+            ),
+        ),
+        DEFAULT_FILTER,
+    )
+
+
+@pytest.mark.parametrize(
     "changes",
     [
         {"title": "Senior Software Engineer, New Grad"},
         {"title": "Software Engineer"},
+        {"title": "Software Engineer II"},
+        {
+            "title": "Software Developer",
+            "description": "A degree in Computer Science is preferred.",
+        },
+        {"title": "Analyst, Early Career (Full Stack)"},
         {"title": "Product Manager, New Grad"},
         {"title": "Software Engineer Intern, New Grad"},
         {"location": "London, UK", "country": "GB"},
@@ -84,6 +122,10 @@ def test_editable_level_terms_change_match() -> None:
     config["level_terms"] = ["graduate engineer"]
     assert not matches_board_filter(job(), validate_filter(config))
     assert matches_board_filter(job(title="Software Engineer, Graduate Engineer"), config)
+    assert not matches_board_filter(
+        job(title="Software Developer", description="Graduation expected between 2026 and 2027"),
+        config,
+    )
 
 
 def test_invalid_filter_is_rejected() -> None:
