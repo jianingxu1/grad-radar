@@ -1,11 +1,17 @@
 from datetime import UTC, datetime
 
+import pytest
 from sqlalchemy import Connection, event, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.database.models import JobPosting, JobPostingSource
+from app.database.models import JobPosting, JobPostingSource, Source
+from app.domain.job_posting_normalization import normalize_apply_url
 from app.models.parsed_job_posting import ParsedJobPosting
-from app.repositories.job_postings import persist_posting, persist_postings
+from app.repositories.job_postings import (
+    persist_posting,
+    persist_postings,
+    persist_postings_with_new_ids,
+)
 from app.sources.bootstrap import bootstrap_sources
 from app.sources.definitions import SourceName
 
@@ -139,3 +145,53 @@ def test_batch_persistence_uses_a_bounded_number_of_statements(
             event.remove(connection, "before_cursor_execute", count_statement)
 
     assert len(statements) <= 4
+
+
+@pytest.mark.parametrize("board_first", [False, True])
+def test_github_and_board_share_one_job_in_either_ingestion_order(
+    session_factory: sessionmaker[Session],
+    board_first: bool,
+) -> None:
+    identifier = "c34b424e-caf2-455a-b104-ae1096ccca29"
+    tracker_url = f"https://jobs.lever.co/palantir/{identifier}/apply?lever-source=Simplify"
+    board_url = f"https://jobs.lever.co/palantir/{identifier}"
+    with session_factory.begin() as session:
+        bootstrap_sources(session)
+        session.add(
+            Source(
+                name="lever:palantir",
+                url="https://jobs.lever.co/palantir",
+                platform="lever",
+                board_name="palantir",
+                company_name="Palantir",
+                priority=100,
+            )
+        )
+
+    def posting(source_name: str, url: str) -> ParsedJobPosting:
+        return ParsedJobPosting(
+            source_name=source_name,
+            company_name="Palantir",
+            title="Software Engineer, New Grad",
+            apply_url=url,
+            application_key=normalize_apply_url(url),
+            location="Denver, CO",
+            listed_at=None,
+            source_position=0,
+        )
+
+    first_source = ("lever:palantir", board_url) if board_first else ("simplify", tracker_url)
+    second_source = ("simplify", tracker_url) if board_first else ("lever:palantir", board_url)
+    with session_factory.begin() as session:
+        _, first_ids = persist_postings_with_new_ids(
+            session, [posting(*first_source)], datetime(2026, 1, 2, tzinfo=UTC)
+        )
+    with session_factory.begin() as session:
+        _, second_ids = persist_postings_with_new_ids(
+            session, [posting(*second_source)], datetime(2026, 1, 3, tzinfo=UTC)
+        )
+    assert len(first_ids) == 1
+    assert second_ids == []
+    with session_factory() as session:
+        assert session.scalar(select(func.count()).select_from(JobPosting)) == 1
+        assert session.scalar(select(func.count()).select_from(JobPostingSource)) == 2

@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from app.database.models import JobPosting, JobPostingSource, Source
 from app.models.parsed_job_posting import ParsedJobPosting
-from app.sources.definitions import SOURCES
 
 
 def persist_posting(session: Session, posting: ParsedJobPosting, seen_at: datetime) -> JobPosting:
@@ -35,6 +34,7 @@ def persist_postings(
     missing_sources = source_names - sources.keys()
     if missing_sources:
         raise ValueError(f"unknown sources: {', '.join(sorted(missing_sources))}")
+    priorities = {name: source.priority for name, source in sources.items()}
 
     application_keys = {posting.application_key for posting in unique_postings.values()}
     jobs_by_key = {
@@ -46,13 +46,14 @@ def persist_postings(
     source_names_by_key = {key: set[str]() for key in application_keys}
     if jobs_by_key:
         existing_sources = session.execute(
-            select(JobPosting.application_key, Source.name)
+            select(JobPosting.application_key, Source.name, Source.priority)
             .join(JobPostingSource, JobPostingSource.job_posting_id == JobPosting.id)
             .join(Source, JobPostingSource.source_id == Source.id)
             .where(JobPosting.application_key.in_(jobs_by_key))
         )
-        for application_key, source_name in existing_sources:
+        for application_key, source_name, priority in existing_sources:
             source_names_by_key[application_key].add(source_name)
+            priorities[source_name] = priority
 
     new_postings_by_key: dict[str, ParsedJobPosting] = {}
     for posting in unique_postings.values():
@@ -60,11 +61,12 @@ def persist_postings(
         known_sources = source_names_by_key[posting.application_key]
         if job is None:
             current_posting = new_postings_by_key.get(posting.application_key)
-            if current_posting is None or _priority(posting.source_name) < _priority(
-                current_posting.source_name
+            if (
+                current_posting is None
+                or priorities[posting.source_name] < priorities[current_posting.source_name]
             ):
                 new_postings_by_key[posting.application_key] = posting
-        elif _priority(posting.source_name) <= _display_priority(known_sources):
+        elif priorities[posting.source_name] <= _display_priority(known_sources, priorities):
             job.company_name, job.title = posting.company_name, posting.title
             job.apply_url, job.location, job.listed_at = (
                 str(posting.apply_url),
@@ -97,6 +99,7 @@ def persist_postings(
             "source_id": sources[str(posting.source_name)].id,
             "last_seen_at": seen_at,
             "source_position": posting.source_position,
+            "active": True,
         }
         for posting in unique_postings.values()
     ]
@@ -107,6 +110,7 @@ def persist_postings(
             set_={
                 "last_seen_at": link_insert.excluded.last_seen_at,
                 "source_position": link_insert.excluded.source_position,
+                "active": True,
             },
         )
     )
@@ -128,12 +132,8 @@ def persist_postings_with_new_ids(
         )
     )
     jobs = persist_postings(session, posting_list, seen_at)
-    return jobs, [job.id for job in jobs if job.application_key not in known_keys]
+    return jobs, list({job.id for job in jobs if job.application_key not in known_keys})
 
 
-def _priority(name: str) -> int:
-    return next(source.priority for source in SOURCES if source.name == name)
-
-
-def _display_priority(source_names: set[str]) -> int:
-    return min((_priority(name) for name in source_names), default=999)
+def _display_priority(source_names: set[str], priorities: dict[str, int]) -> int:
+    return min((priorities.get(name, 999) for name in source_names), default=999)
