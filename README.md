@@ -34,13 +34,14 @@ I built GradRadar so I could check one place for the latest, deduplicated new gr
 
 ## Roadmap
 
-- [x] Ingest the SpeedyApply and Simplify new-grad trackers.
-- [x] Filter clearly U.S.-eligible SWE roles and normalize application links.
-- [x] Deduplicate listings by normalized application URL while retaining their tracker source.
-- [x] Build a searchable, filterable web feed and a read-only API.
-- [x] Add optional Google sign-in.
-- [x] Run the ingestion worker and database reliably in production, with health monitoring. [DONE]
-- [x] Build opt-in Telegram alerts with connection confirmation, unsubscribe,
-  retries, and duplicate-safe outbox delivery.
-- [ ] Add other notification channels.
-- [ ] Ingest postings directly from ATS platforms such as Ashby and Greenhouse.
+- [x] Import new-grad job listings from the SpeedyApply and Simplify GitHub trackers.
+- [x] Keep software engineering jobs that match new-grad criteria and have clearly U.S.-eligible locations.
+- [x] Normalize application links and show duplicate jobs once while retaining their tracker sources.
+- [x] Build a feed to search by company or title, filter by location, remote status, source, or listing date, sort results, and browse pages; provide a read-only API.
+- [x] Run scheduled ingestion and monitor the production service and database.
+- [x] Add Google sign-in for user accounts.
+- [x] Send opt-in Telegram alerts after users connect their accounts; support disconnecting, retries, and duplicate-safe delivery.
+- [x] Ingest jobs directly from Greenhouse, Ashby, and Lever company boards; let admins manage boards and job filters, and show source-specific application links and sync status.
+- [ ] Add support for more company job board platforms.
+- [ ] Let admins add company board sources from the app.
+- [ ] Add an in-app feedback button so users can suggest improvements.
