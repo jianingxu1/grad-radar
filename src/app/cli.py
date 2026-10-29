@@ -12,6 +12,7 @@ from app.services.github_ingestion import IngestionSummary, ingest_all
 from app.services.notifications import deliver_pending
 from app.services.telegram import TelegramClient
 from app.sources.bootstrap import bootstrap_sources
+from app.sources.seed_boards import bootstrap_seed_boards
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,8 @@ def ingest_and_deliver(
     github_token: str | None,
     telegram_bot_token: str | None,
 ) -> list[IngestionSummary]:
+    with session_factory.begin() as session:
+        bootstrap_seed_boards(session)
     summaries = ingest_all(session_factory, github_token)
     board_results = ingest_all_boards(session_factory)
     summaries.extend(IngestionSummary(source=name, status=status) for name, status in board_results)
@@ -52,7 +55,7 @@ def main() -> None:
             raise SystemExit(1)
         return
     with transaction(session_factory) as session:
-        created = bootstrap_sources(session)
+        created = bootstrap_sources(session) + bootstrap_seed_boards(session)
     print(f"bootstrapped sources (created={created})")
 
 

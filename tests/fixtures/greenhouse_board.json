@@ -1,0 +1,22 @@
+{
+  "jobs": [
+    {
+      "id": 8212508,
+      "internal_job_id": 3520042,
+      "title": "Software Engineer, Early Career \u2014 Immediate Start",
+      "location": {
+        "name": "San Francisco, Seattle, New York"
+      },
+      "absolute_url": "https://stripe.com/jobs/search?gh_jid=8212508",
+      "updated_at": "2026-10-22T09:17:07-04:00",
+      "departments": [
+        {
+          "id": 84360,
+          "name": "5112 General University",
+          "child_ids": [],
+          "parent_id": 84359
+        }
+      ]
+    }
+  ]
+}
