@@ -1,8 +1,10 @@
 """Supabase JWT validation for FastAPI's private endpoints."""
 
+from typing import Annotated
+
 import httpx
 import jwt
-from fastapi import HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 
 from app.config.settings import Settings, get_settings
 
@@ -30,6 +32,12 @@ def get_current_user(request: Request) -> str:
         return subject
     except (jwt.PyJWTError, ValueError) as error:
         return _validate_with_supabase_auth(token, settings, error)
+
+
+def get_source_admin(user_id: Annotated[str, Depends(get_current_user)]) -> str:
+    if user_id not in get_settings().source_admin_ids:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "source admin required")
+    return user_id
 
 
 def _validate_with_supabase_auth(token: str, settings: Settings, original_error: Exception) -> str:

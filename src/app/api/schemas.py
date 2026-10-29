@@ -1,7 +1,8 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SourceResponse(BaseModel):
@@ -11,6 +12,32 @@ class SourceResponse(BaseModel):
 
 class SourceFreshnessResponse(SourceResponse):
     last_successful_sync_at: datetime | None
+
+
+class SourceDetailResponse(SourceFreshnessResponse):
+    id: UUID
+    platform: str
+    board_name: str | None
+    company_name: str | None
+    enabled: bool
+    filter_config: dict[str, list[str]]
+    last_sync_status: str | None
+
+
+class SourceCreateRequest(BaseModel):
+    platform: Literal["greenhouse", "ashby", "lever"]
+    board_name: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$")
+    company_name: str = Field(min_length=1, max_length=100)
+    filter_config: dict[str, list[str]] | None = None
+
+
+class SourceUpdateRequest(BaseModel):
+    enabled: bool | None = None
+    filter_config: dict[str, list[str]] | None = None
+
+
+class SourceAdminResponse(BaseModel):
+    is_admin: bool
 
 
 class HealthResponse(BaseModel):
