@@ -139,12 +139,38 @@ function SortableHeader({
 }
 
 function Freshness({ sources }: { sources: JobPage["source_freshness"] }) {
+  const githubSources = sources.filter((source) => !source.name.includes(":"));
+  const companySources = sources.filter((source) => source.name.includes(":"));
+
   return (
-    <aside className="mb-3 text-xs text-slate-500" aria-label="Source freshness">
-      <span>Source freshness: </span>
-      {sources.map((source, index) => (
-        <span key={source.name}>
-          {index > 0 && " · "}
+    <aside className="mb-3 space-y-2 text-xs text-slate-500" aria-label="Source freshness">
+      <p className="font-medium text-slate-600">Source freshness</p>
+      <div>
+        <p className="mb-1 font-semibold uppercase tracking-wide">GitHub sources</p>
+        <FreshnessEntries sources={githubSources} />
+      </div>
+      {companySources.length > 0 && (
+        <details className="group">
+          <summary className="flex w-fit list-none items-center gap-2 font-semibold uppercase tracking-wide text-slate-600 marker:hidden">
+            Company job boards ({companySources.length})
+            <span aria-hidden="true" className="text-sm group-open:rotate-180">
+              ⌄
+            </span>
+          </summary>
+          <div className="mt-1">
+            <FreshnessEntries sources={companySources} />
+          </div>
+        </details>
+      )}
+    </aside>
+  );
+}
+
+function FreshnessEntries({ sources }: { sources: JobPage["source_freshness"] }) {
+  return (
+    <ul className="flex flex-wrap gap-x-3 gap-y-1">
+      {sources.map((source) => (
+        <li key={source.name}>
           <a href={source.url} target="_blank" rel="noreferrer">
             {sourceLabel(source.name)}
           </a>
@@ -152,9 +178,9 @@ function Freshness({ sources }: { sources: JobPage["source_freshness"] }) {
           {source.last_successful_sync_at
             ? formatDate(source.last_successful_sync_at)
             : "not checked yet"}
-        </span>
+        </li>
       ))}
-    </aside>
+    </ul>
   );
 }
 

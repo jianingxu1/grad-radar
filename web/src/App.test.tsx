@@ -68,7 +68,8 @@ describe("App", () => {
 
     expect(await screen.findByText("Platform Engineer, New Grad")).toBeVisible();
     const freshness = screen.getByLabelText("Source freshness");
-    expect(freshness).toHaveTextContent("Source freshness:");
+    expect(freshness).toHaveTextContent("Source freshness");
+    expect(within(freshness).getByText("GitHub sources")).toBeVisible();
     expect(freshness).toHaveTextContent(/Simplify: Sep 14, 2026/);
     expect(freshness).toHaveTextContent(/SpeedyApply: not checked yet/);
     const applicationLink = screen.getByRole("link", { name: /Open application link for Figma/ });
@@ -318,6 +319,16 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("All sources (3)");
+    const freshness = screen.getByLabelText("Source freshness");
+    const companyToggle = within(freshness).getByText("Company job boards (1)");
+    const companySection = companyToggle.closest("details");
+    expect(companySection).not.toHaveAttribute("open");
+    fireEvent.click(companyToggle);
+    expect(companySection).toHaveAttribute("open");
+    expect(within(freshness).getByRole("link", { name: "Palantir (Lever)" })).toHaveAttribute(
+      "href",
+      "https://jobs.lever.co/palantir",
+    );
     fireEvent.click(screen.getByText("All sources (3)"));
     const sourceFilters = screen.getByRole("group", { name: "Source" });
     fireEvent.click(within(sourceFilters).getByRole("button", { name: "Uncheck all" }));
