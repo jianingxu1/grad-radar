@@ -41,9 +41,9 @@ export function FeedFilters({
             placeholder="Company or role"
           />
         </Field>
-        <Field grouped label="Listed within">
+        <Field label="Listed within">
           <details className="group relative w-full max-w-96" ref={dateDetails}>
-            <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded border border-slate-300 px-3 text-sm text-slate-800 marker:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded border border-slate-300 px-2.5 py-1.5 text-sm text-slate-800 marker:hidden">
               <span>{selectedDate?.label ?? "Any time"}</span>
               <span aria-hidden="true" className="text-slate-500 group-open:rotate-180">
                 ⌄
@@ -75,9 +75,9 @@ export function FeedFilters({
             </div>
           </details>
         </Field>
-        <Field grouped label="Source">
+        <Field label="Source">
           <details className="group relative w-full max-w-96">
-            <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded border border-slate-300 px-3 text-sm text-slate-800 marker:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded border border-slate-300 px-2.5 py-1.5 text-sm text-slate-800 marker:hidden">
               <span>
                 {filters.sources.length === 0
                   ? `All sources (${sources.length})`
@@ -152,28 +152,15 @@ function SourceGroup({
 
 function Field({
   children,
-  grouped = false,
   label,
 }: {
   children: ReactNode;
-  grouped?: boolean;
   label: string;
 }) {
-  const className = "grid gap-1 text-xs font-medium text-slate-600";
-
-  if (grouped) {
-    return (
-      <fieldset className={`${className} border-0 p-0`}>
-        <legend className="p-0">{label}</legend>
-        {children}
-      </fieldset>
-    );
-  }
-
   return (
-    <label className={className}>
-      {label}
+    <div className="grid gap-1 text-xs font-medium text-slate-600">
+      <span>{label}</span>
       {children}
-    </label>
+    </div>
   );
 }
