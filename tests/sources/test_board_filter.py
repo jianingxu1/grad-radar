@@ -34,6 +34,23 @@ def test_default_filter_accepts_us_new_grad_software_role() -> None:
     assert postings[0].source_name == "lever:palantir"
 
 
+def test_default_filter_accepts_shield_ai_new_graduate_titles() -> None:
+    assert matches_board_filter(
+        job(
+            title="Software Development Engineer - New Graduate",
+            employment_type="Full Time Employee",
+        ),
+        DEFAULT_FILTER,
+    )
+    assert matches_board_filter(
+        job(
+            title="Engineer I, Software Integration - New Grad",
+            employment_type="Full Time Employee",
+        ),
+        DEFAULT_FILTER,
+    )
+
+
 @pytest.mark.parametrize(
     "changes",
     [

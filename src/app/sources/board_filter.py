@@ -11,6 +11,8 @@ DEFAULT_FILTER: dict[str, list[str]] = {
     "role_terms": [
         "software engineer",
         "software developer",
+        "software development engineer",
+        "engineer i, software",
         "backend engineer",
         "frontend engineer",
         "front end engineer",
@@ -45,7 +47,7 @@ def matches_board_filter(job: BoardJob, config: dict[str, list[str]]) -> bool:
     if any(term in title for term in config["exclude_terms"]):
         return False
     employment = job.employment_type.lower().replace("-", "").replace(" ", "")
-    if employment and employment != "fulltime":
+    if employment and employment not in {"fulltime", "fulltimeemployee"}:
         return False
     if job.country and job.country.upper() not in {"US", "USA", "UNITED STATES"}:
         return False
