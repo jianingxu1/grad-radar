@@ -11,8 +11,8 @@ jobs without alerting for its backlog.
 Set `SOURCE_ADMIN_USER_IDS` to a comma-separated list of Supabase Auth user
 UUIDs in the Railway environment to allow Add Source and filter editing.
 Apply database migrations before deploying a worker or API that uses their
-columns. The nine verified seed boards are created by the ingestion worker;
-existing disabled boards remain disabled.
+columns. The configured company boards in `src/app/sources/seed_boards.py` are
+created by the ingestion worker; existing disabled boards remain disabled.
 
 `.github/workflows/ingest.yml` is a manual backup for running ingestion from
 GitHub Actions. It does not set or run the production schedule.
