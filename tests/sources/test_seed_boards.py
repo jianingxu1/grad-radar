@@ -9,12 +9,13 @@ from app.sources.seed_boards import SEED_BOARDS
 FIXTURES = Path(__file__).parents[1] / "fixtures"
 
 
-def test_seed_boards_are_distinct_and_cover_all_three_platforms() -> None:
-    assert len(SEED_BOARDS) == len({board.name for board in SEED_BOARDS}) == 79
+def test_seed_boards_are_distinct_and_cover_all_four_platforms() -> None:
+    assert len(SEED_BOARDS) == len({board.name for board in SEED_BOARDS}) == 80
     assert Counter(board.platform for board in SEED_BOARDS) == {
         "greenhouse": 35,
         "ashby": 40,
         "lever": 4,
+        "oracle": 1,
     }
 
 

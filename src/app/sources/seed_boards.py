@@ -15,6 +15,7 @@ class SeedBoard:
     platform: Platform
     board_name: str
     company_name: str
+    platform_config: dict[str, str] | None = None
 
     @property
     def name(self) -> str:
@@ -22,6 +23,9 @@ class SeedBoard:
 
 
 SEED_BOARDS = (
+    SeedBoard(
+        "oracle", "uber", "Uber", {"host": "iaziqy.fa.ocs.oraclecloud.com", "site_number": "CX_1"}
+    ),
     SeedBoard("greenhouse", "stripe", "Stripe"),
     SeedBoard("greenhouse", "databricks", "Databricks"),
     SeedBoard("greenhouse", "coinbase", "Coinbase"),
@@ -126,11 +130,12 @@ def bootstrap_seed_boards(session: Session) -> int:
         session.add(
             Source(
                 name=board.name,
-                url=board_url(board.platform, board.board_name),
+                url=board_url(board.platform, board.board_name, board.platform_config),
                 platform=board.platform,
                 board_name=board.board_name,
                 company_name=board.company_name,
                 filter_config=DEFAULT_FILTER,
+                platform_config=board.platform_config,
                 priority=100,
             )
         )

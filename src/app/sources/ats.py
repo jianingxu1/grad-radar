@@ -1,5 +1,6 @@
 """Public ATS board readers. Fetching and filtering are separate steps."""
 
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -7,7 +8,8 @@ from urllib.parse import quote
 
 import httpx
 
-Platform = Literal["greenhouse", "ashby", "lever"]
+Platform = Literal["greenhouse", "ashby", "lever", "oracle"]
+OracleConfig = dict[str, str]
 
 
 @dataclass(frozen=True)
@@ -23,7 +25,14 @@ class BoardJob:
     country: str | None = None
 
 
-def board_url(platform: Platform, board_name: str) -> str:
+def board_url(
+    platform: Platform, board_name: str, platform_config: OracleConfig | None = None
+) -> str:
+    if platform == "oracle":
+        config = validate_oracle_config(platform_config)
+        return (
+            f"https://{config['host']}/hcmUI/CandidateExperience/en/sites/{config['site_number']}"
+        )
     board_name = quote(board_name, safe="-_.")
     if platform == "greenhouse":
         return f"https://job-boards.greenhouse.io/{board_name}"
@@ -32,7 +41,15 @@ def board_url(platform: Platform, board_name: str) -> str:
     return f"https://jobs.lever.co/{board_name}"
 
 
-def fetch_board(client: httpx.Client, platform: Platform, board_name: str) -> list[BoardJob]:
+def fetch_board(
+    client: httpx.Client,
+    platform: Platform,
+    board_name: str,
+    platform_config: OracleConfig | None = None,
+) -> list[BoardJob]:
+    if platform == "oracle":
+        config = validate_oracle_config(platform_config)
+        return fetch_oracle(client, config)
     board_name = quote(board_name, safe="-_.")
     if platform == "greenhouse":
         url = f"https://boards-api.greenhouse.io/v1/boards/{board_name}/jobs"
@@ -49,6 +66,92 @@ def fetch_board(client: httpx.Client, platform: Platform, board_name: str) -> li
         if len(batch) < 100:
             return jobs
     raise ValueError("Lever board exceeds pagination limit")
+
+
+def validate_oracle_config(config: OracleConfig | None) -> OracleConfig:
+    if not isinstance(config, dict):
+        raise ValueError("Oracle requires host and site_number")
+    host = config.get("host", "").strip().lower()
+    site_number = config.get("site_number", "").strip()
+    if not re.fullmatch(r"(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+oraclecloud\.com", host):
+        raise ValueError("host must be an Oracle Cloud tenant hostname")
+    if not re.fullmatch(r"CX(?:_\d+)?", site_number):
+        raise ValueError("site_number must match CX or CX_<digits>")
+    return {"host": host, "site_number": site_number}
+
+
+def fetch_oracle(client: httpx.Client, config: OracleConfig) -> list[BoardJob]:
+    endpoint = (
+        f"https://{config['host']}/hcmRestApi/resources/11.13.18.05/recruitingCEJobRequisitions"
+    )
+    jobs: list[BoardJob] = []
+    limit = 100
+    offset = 0
+    seen_ids: set[str] = set()
+    while offset < 10000:
+        finder = f"findReqs;siteNumber={config['site_number']},limit={limit},offset={offset}"
+        response = client.get(
+            endpoint,
+            params={
+                "onlyData": "true",
+                "finder": finder,
+                "expand": "requisitionList",
+            },
+        )
+        response.raise_for_status()
+        batch, total = parse_oracle(response.json(), config)
+        batch_ids = {job.posting_id for job in batch}
+        if len(batch_ids) != len(batch) or seen_ids.intersection(batch_ids):
+            raise ValueError("Oracle pagination returned duplicate requisitions")
+        jobs.extend(batch)
+        seen_ids.update(batch_ids)
+        if len(jobs) >= total:
+            if len(jobs) != total:
+                raise ValueError("Oracle returned more jobs than TotalJobsCount")
+            return jobs
+        if not batch:
+            raise ValueError("Oracle pagination ended before TotalJobsCount")
+        offset += len(batch)
+    raise ValueError("Oracle board exceeds pagination limit")
+
+
+def parse_oracle(payload: Any, config: OracleConfig) -> tuple[list[BoardJob], int]:
+    if isinstance(payload, dict) and isinstance(payload.get("items"), list):
+        pages = payload["items"]
+        if len(pages) != 1 or not isinstance(pages[0], dict):
+            raise ValueError("Oracle response must contain one requisition search result")
+        payload = pages[0]
+    if not isinstance(payload, dict) or not isinstance(payload.get("requisitionList"), list):
+        raise ValueError("Oracle response must contain requisitionList")
+    total = payload.get("TotalJobsCount")
+    if not isinstance(total, int) or isinstance(total, bool) or total < 0:
+        raise ValueError("Oracle response must contain a valid TotalJobsCount")
+    rows = payload["requisitionList"]
+    if not all(isinstance(row, dict) for row in rows):
+        raise ValueError("Oracle requisition must be an object")
+    jobs: list[BoardJob] = []
+    for row in rows:
+        req_id = _required(row, "Id")
+        job_id = str(req_id)
+        if not re.fullmatch(r"\d+", job_id):
+            raise ValueError("Oracle requisition Id must be numeric")
+        location = str(row.get("PrimaryLocation") or "")
+        country = row.get("PrimaryLocationCountry")
+        listed = _date(row.get("PostedDate", row.get("PostingStartDate")))
+        jobs.append(
+            BoardJob(
+                posting_id=job_id,
+                title=_required_text(row, "Title"),
+                location=location,
+                apply_url=f"https://{config['host']}/hcmUI/CandidateExperience/en/sites/{config['site_number']}/job/{job_id}",
+                description=str(row.get("ShortDescriptionStr", row.get("ShortDescription")) or ""),
+                department="",
+                employment_type="",
+                listed_at=listed,
+                country=str(country) if country else None,
+            )
+        )
+    return jobs, total
 
 
 def parse_greenhouse(payload: Any) -> list[BoardJob]:
@@ -165,4 +268,7 @@ def _date(value: Any) -> datetime | None:
         return None
     if not isinstance(value, str):
         raise ValueError("publishedAt must be an ISO timestamp")
-    return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)

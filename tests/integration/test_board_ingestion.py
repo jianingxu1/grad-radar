@@ -142,11 +142,17 @@ def test_board_workers_receive_settings_and_filter_without_database_access(
         board_name="example",
         company_name="Example",
         filter_config=DEFAULT_FILTER,
+        platform_config=None,
     )
     fetched: list[tuple[str, str]] = []
     normalized: list[tuple[str, str, str]] = []
 
-    def fetch(client: httpx.Client, platform: str, board_name: str) -> list:
+    def fetch(
+        client: httpx.Client,
+        platform: str,
+        board_name: str,
+        platform_config: dict[str, str] | None = None,
+    ) -> list:
         fetched.append((platform, board_name))
         return []
 
@@ -178,7 +184,12 @@ def test_ingest_all_boards_runs_at_most_eight_fetch_workers(
     maximum = 0
     calls = 0
 
-    def fetch(client: httpx.Client, platform: str, board_name: str) -> list:
+    def fetch(
+        client: httpx.Client,
+        platform: str,
+        board_name: str,
+        platform_config: dict[str, str] | None = None,
+    ) -> list:
         nonlocal active, maximum, calls
         with lock:
             calls += 1
@@ -206,7 +217,12 @@ def test_ingest_all_boards_records_failure_and_continues(
         _add_board(session, "greenhouse:bad", "bad")
         _add_board(session, "greenhouse:good", "good")
 
-    def fetch(client: httpx.Client, platform: str, board_name: str) -> list:
+    def fetch(
+        client: httpx.Client,
+        platform: str,
+        board_name: str,
+        platform_config: dict[str, str] | None = None,
+    ) -> list:
         if board_name == "bad":
             raise ValueError("bad board response")
         return []

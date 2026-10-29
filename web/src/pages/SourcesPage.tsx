@@ -11,7 +11,7 @@ import {
 import { PageHeader } from "../components/PageHeader";
 import { formatDate, sourceLabel } from "../components/format";
 
-type BoardPlatform = "greenhouse" | "ashby" | "lever";
+type BoardPlatform = "greenhouse" | "ashby" | "lever" | "oracle";
 
 export function SourcesPage({
   user,
@@ -28,6 +28,8 @@ export function SourcesPage({
   const [platform, setPlatform] = useState<BoardPlatform>("greenhouse");
   const [boardName, setBoardName] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [oracleHost, setOracleHost] = useState("");
+  const [oracleSiteNumber, setOracleSiteNumber] = useState("CX_1");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [terms, setTerms] = useState<SourceFilter | null>(null);
   const [saving, setSaving] = useState(false);
@@ -71,6 +73,9 @@ export function SourcesPage({
         platform,
         board_name: boardName.trim(),
         company_name: companyName.trim(),
+        ...(platform === "oracle"
+          ? { platform_config: { host: oracleHost.trim(), site_number: oracleSiteNumber.trim() } }
+          : {}),
       });
       setSources((items) => [...items, source]);
       setFormOpen(false);
@@ -144,8 +149,21 @@ export function SourcesPage({
                 <option value="greenhouse">Greenhouse</option>
                 <option value="ashby">Ashby</option>
                 <option value="lever">Lever</option>
+                <option value="oracle">Oracle Recruiting</option>
               </select>
             </label>
+            {platform === "oracle" && (
+              <>
+                <label className="grid gap-1 text-sm">
+                  Oracle tenant hostname
+                  <input required value={oracleHost} onChange={(event) => setOracleHost(event.target.value)} placeholder="e.g. example.fa.ocs.oraclecloud.com" />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  Oracle site number
+                  <input required pattern="CX(_[0-9]+)?" value={oracleSiteNumber} onChange={(event) => setOracleSiteNumber(event.target.value)} placeholder="CX_1" />
+                </label>
+              </>
+            )}
             <label className="grid gap-1 text-sm">
               Board name
               <input

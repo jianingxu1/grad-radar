@@ -31,6 +31,7 @@ class BoardSource:
     board_name: str | None
     company_name: str | None
     filter_config: dict[str, Any] | None
+    platform_config: dict[str, str] | None = None
 
 
 @dataclass
@@ -51,6 +52,7 @@ def ingest_all_boards(session_factory: sessionmaker[Session]) -> list[tuple[str,
                 board_name=source.board_name,
                 company_name=source.company_name,
                 filter_config=source.filter_config,
+                platform_config=source.platform_config,
             )
             for source in session.scalars(
                 select(Source).where(Source.enabled, Source.platform != "github")
@@ -89,6 +91,7 @@ def ingest_board(
             board_name=source.board_name,
             company_name=source.company_name,
             filter_config=source.filter_config,
+            platform_config=source.platform_config,
         )
     return _persist_result(session_factory, _fetch_and_filter(client, board_source))
 
@@ -99,7 +102,9 @@ def _fetch_and_filter(client: httpx.Client, source: BoardSource) -> BoardFetchRe
         if not source.board_name or not source.company_name:
             raise ValueError("board source is missing its name or company")
         logger.info("Fetching jobs from %s board %s", source.platform, source.board_name)
-        jobs = _fetch_with_retries(client, source.platform, source.board_name)
+        jobs = _fetch_with_retries(
+            client, source.platform, source.board_name, source.platform_config
+        )
         logger.info("Filtering %s fetched jobs from source %s", len(jobs), source.name)
         postings = normalize_board_jobs(
             jobs,
@@ -174,5 +179,10 @@ def _persist_result(session_factory: sessionmaker[Session], result: BoardFetchRe
     stop=stop_after_attempt(3),
     reraise=True,
 )
-def _fetch_with_retries(client: httpx.Client, platform: str, board_name: str) -> list[BoardJob]:
-    return fetch_board(client, cast(Platform, platform), board_name)
+def _fetch_with_retries(
+    client: httpx.Client,
+    platform: str,
+    board_name: str,
+    platform_config: dict[str, str] | None = None,
+) -> list[BoardJob]:
+    return fetch_board(client, cast(Platform, platform), board_name, platform_config)

@@ -25,14 +25,16 @@ class SourceDetailResponse(SourceFreshnessResponse):
     company_name: str | None
     enabled: bool
     filter_config: dict[str, list[str]]
+    platform_config: dict[str, str] | None
     last_sync_status: str | None
 
 
 class SourceCreateRequest(BaseModel):
-    platform: Literal["greenhouse", "ashby", "lever"]
+    platform: Literal["greenhouse", "ashby", "lever", "oracle"]
     board_name: str = Field(min_length=1, max_length=100)
     company_name: str = Field(min_length=1, max_length=100)
     filter_config: dict[str, list[str]] | None = None
+    platform_config: dict[str, str] | None = None
 
     @field_validator("board_name")
     @classmethod
@@ -54,6 +56,20 @@ class SourceCreateRequest(BaseModel):
         if not value.strip():
             raise ValueError("company name cannot be blank")
         return value.strip()
+
+    @field_validator("platform_config")
+    @classmethod
+    def validate_platform_config(
+        cls, value: dict[str, str] | None, info: object
+    ) -> dict[str, str] | None:
+        platform = getattr(info, "data", {}).get("platform")
+        if platform == "oracle":
+            from app.sources.ats import validate_oracle_config
+
+            return validate_oracle_config(value)
+        if value is not None:
+            raise ValueError("platform_config is only supported for Oracle sources")
+        return None
 
 
 class SourceUpdateRequest(BaseModel):

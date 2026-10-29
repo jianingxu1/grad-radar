@@ -13,6 +13,10 @@ UUIDs in the Railway environment to allow Add Source and filter editing.
 Apply database migrations before deploying a worker or API that uses their
 columns. The configured company boards in `src/app/sources/seed_boards.py` are
 created by the ingestion worker; existing disabled boards remain disabled.
+Oracle Recruiting sources also store `host` and `site_number` in
+`platform_config`. Use an HTTPS Oracle Cloud tenant hostname and a site number
+in the `CX` or `CX_<digits>` form. The source's `board_name` remains the
+company identifier (for example, `oracle:uber`).
 
 `.github/workflows/ingest.yml` is a manual backup for running ingestion from
 GitHub Actions. It does not set or run the production schedule.
