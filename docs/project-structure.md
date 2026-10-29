@@ -15,18 +15,19 @@
   - `domain/` contains pure normalization and eligibility rules.
   - `models/` contains validated internal data models.
   - `repositories/` contains database persistence logic.
-  - `services/` contains auth, GitHub ingestion, notifications, and Telegram
-    delivery logic.
-  - `sources/` defines configured job trackers and their parsers.
+  - `services/` contains auth, GitHub and company-board ingestion,
+    notifications, and Telegram delivery logic.
+  - `sources/` defines the GitHub trackers, board adapters, default filters,
+    seed boards, and parsers.
 - `supabase/` contains local Supabase config and SQL migrations. The migrations
   define the job posting, source, and Telegram notification tables.
 - `tests/` contains Python unit and integration tests for the backend.
-  `tests/fixtures/` stores sample tracker files.
+  `tests/fixtures/` stores sample tracker files and board API responses.
 - `web/` contains the Vite, React, and TypeScript frontend.
   - `src/App.tsx` coordinates routing, authentication, and feed state.
   - `src/components/` contains the feed header, filters, listings, pagination,
     and shared presentation helpers.
-  - `src/pages/` contains the FAQ and notification settings pages.
+  - `src/pages/` contains the Sources, FAQ, and notification settings pages.
   - `src/api.ts` contains API types and fetch helpers.
   - `src/filterState.ts` keeps feed filters in the URL.
   - `src/supabase.ts` creates the optional Supabase browser client.

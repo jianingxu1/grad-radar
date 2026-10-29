@@ -1,225 +1,30 @@
 # GradRadar system design
 
-## 1. Product goal and MVP boundary
+GradRadar is a public feed of U.S. new-grad and early-career software engineering jobs. The backend ingests two community GitHub trackers and configured company boards on Greenhouse, Ashby, and Lever. The React site exposes a feed and a public Sources page. Google sign-in through Supabase Auth lets users manage Telegram notifications; source management is limited to allowlisted admins.
 
-GradRadar helps candidates find **new, U.S.-based, entry-level software
-engineering jobs** from configured community trackers. Each current result
-provides the source-supplied application link, company, title, location,
-estimated listing time, first-seen time, and tracker source.
+## Sources and ingestion
 
-The target audience is full-time SWE new-grad roles for 2026 or 2027
-bachelor's/master's graduates. Exclude PhD-specific roles.
+The `sources` table holds each source's platform, board name, company, enabled state, filter, priority, last successful sync, and sync status. The two GitHub rows retain their existing IDs. See [the board investigation](source-board-investigation-2026-10-28.md) for verified API URLs and the nine seeded company boards.
 
-The implemented backend is a public, read-only API. The React website supports
-optional Google sign-in through Supabase Auth, but accounts do not affect the
-public feed yet. It ingests only two GitHub repositories and does not verify
-employer listings, track applications, scrape LinkedIn, submit applications,
-or send individual alerts.
+Railway runs `python -m app.cli ingest` every 15 minutes. The worker bootstraps the two GitHub sources and nine company boards, fetches enabled sources independently, stores normalized jobs, and delivers pending Telegram notifications. GitHub parsers fetch changed revisions of the configured files. Company-board adapters call public, server-built API URLs and validate Greenhouse, Ashby, or Lever responses. Lever results are paginated. A valid empty board is a successful sync. A failed fetch or parse leaves existing job links untouched and records the error.
 
-### Product decisions
+Board listings pass through the source's editable filter. The default requires a U.S. location, a full-time SWE title, and an explicit new-grad or early-career level; it excludes internships and senior roles. Ambiguous roles are omitted. A successful board sync marks roles absent from its current filtered result inactive. GitHub links remain active after a role disappears from a tracker. A job stays in the feed while at least one enabled source has an active link.
 
-| Decision | Choice | Why |
-| --- | --- | --- |
-| Source of truth | The two configured GitHub files | Every displayed row identifies its tracker source. |
-| Source repos | SpeedyApply USA file and Simplify SWE table | Both have a maintained job table and direct apply links. |
-| Storage | PostgreSQL | Durable dedupe, history, filtering, and subscriptions. |
-| API | FastAPI | Matches the Python ingestion service and provides typed OpenAPI docs. |
-| Web UI | React + TypeScript | Responsive, filterable public feed. |
-| Authentication | Supabase Auth with Google only | Establish an account before subscriptions are added. |
-| First alert channel, after MVP | Telegram bot | Free, supports opt-in user chats, and is simple to ship. |
-| Later alert channel | Discord bot, then email | Discord webhooks are ideal for a shared channel; per-user delivery needs a bot. |
-| Do not support in MVP | Alerts, WhatsApp, and iMessage | Prove the feed before introducing notification complexity. |
+## Jobs, provenance, and alerts
 
-Telegram's bot platform is free for users and developers. Discord incoming
-webhooks are useful for broadcasting into one channel but do not provide
-user-specific subscription management, so that needs a bot/OAuth flow when we
-add it. [Telegram](https://core.telegram.org/bots),
-[Discord](https://docs.discord.com/developers/platform/webhooks)
+`job_postings` holds one normalized job per application identity. `job_posting_sources` holds each source's original application link, last observation, order, and active state. Deduplication first matches normalized application URLs and then stable Greenhouse, Ashby, or Lever posting IDs from alternate URL forms. It does not merge roles by similar titles. Both source links remain visible on a merged job, regardless of ingestion order.
 
-## 2. System shape
+New jobs from a board's first successful sync appear in the feed without alerts. Later new jobs enqueue Telegram notifications. A second source for an existing job does not enqueue another alert. Outbox rows provide retryable delivery.
 
-```mermaid
-flowchart LR
-  G[GitHub tracker files] --> P[Revision-aware parsers]
-  P --> N[Normalize and US filter]
-  N --> D[Deduplicate]
-  D --> S[(PostgreSQL)]
-  S --> A[FastAPI]
-  A --> W[React website]
-```
+## API and website
 
-Each GitHub parser reads only a changed source revision, extracts its selected
-job table, normalizes the result, applies the U.S. filter, and upserts it. A
-current eligible job is then available through the API.
+- `GET /v1/jobs` returns the paginated public feed, with search, location, company, recency, source, and sort filters.
+- `GET /v1/sources` lists GitHub and company-board sources with sync details.
+- `POST /v1/sources` and `PATCH /v1/sources/{id}` create or update company boards for admins. New and re-enabled boards are verified against their public API. GitHub sources cannot be edited through these endpoints.
+- `GET /v1/me/source-admin` tells an authenticated user whether the server's `SOURCE_ADMIN_USER_IDS` allowlist grants source management.
 
-This cleanly separates three different facts:
+The public `/sources` page shows all sources and their status. Admins can add Greenhouse, Ashby, or Lever boards and edit their filters. The feed loads available source choices from the API and shows each job's source-provided links.
 
-- **Provenance:** a configured GitHub tracker mentioned the role.
-- **Normalized job:** GradRadar's current record, potentially observed in both
-  source repositories.
+## Release order
 
-## 3. Ingestion and replication model
-
-### Source registry
-
-The registry has exactly two source files:
-
-- [`speedyapply/2027-SWE-College-Jobs`](https://github.com/speedyapply/2027-SWE-College-Jobs),
-  `main`, `NEW_GRAD_USA.md`
-- [`SimplifyJobs/New-Grad-Positions`](https://github.com/SimplifyJobs/New-Grad-Positions),
-  `dev`, `README.md`, Software Engineering section only
-
-Each source has a GitHub repository, branch, file path, parser name, priority,
-last successfully processed SHA, and last successful check time.
-Fetch source metadata first; download and parse the raw file only when the SHA
-changes. This makes the scheduled run cheap and repeatable.
-
-The parsers are intentionally separate because the formats differ:
-
-- **SpeedyApply:** Markdown tables with company, position, location, salary,
-  application link, and age.
-- **Simplify:** HTML `<table>` rows inside Markdown; company cells may be blank
-  `↳` continuation rows and application cells include both an apply link and a
-  Simplify link. Prefer the link marked Apply and inherit the prior
-  company for continuation rows.
-
-### Polling rules
-
-- Check both source files every 15 minutes from 7 AM through 8:45 PM Pacific,
-  then every two hours overnight, using their commit/blob SHA; parse only
-  changed files.
-- Use bounded retries with exponential backoff. One failing source must not halt
-  the run.
-- Treat a parse as successful only if the expected table is found and basic
-  structure checks pass.
-- A job remains in the feed once discovered. `last_seen_at` records when a
-  source last listed it, but disappearance from the tracker does not hide it.
-
-### Idempotency and deduplication
-
-Each parsed posting is linked to its source through the composite
-`job_posting_id + source_id` key. A repeat observation updates `last_seen_at`;
-the initial job insert sets `first_seen_at`.
-
-Deduplicate across the two sources only when normalized application URLs match.
-Normalization removes fragments and known tracking parameters such as `utm_*`
-and `ref`, while preserving job-identifying parameters such as `gh_jid`. For
-the MVP, do not use fuzzy title/company/location matching; keep uncertain
-lookalikes visible rather than accidentally hiding a real role.
-
-## 4. Core data model
-
-| Table | Important fields | Purpose |
-| --- | --- | --- |
-| `sources` | `id`, name, repository URL, last processed SHA, last successful check | The two GitHub tracker files. |
-| `job_postings` | normalized apply URL, title, company, location, estimated listing date, first seen | Normalized job state. |
-| `job_posting_sources` | job, source, last seen, source position | Links a job to the trackers that have listed it and preserves its row order within each tracker. |
-
-`job_postings.location` retains the source text as one opaque string. A job
-stays visible after discovery as long as it has at least one source link.
-`job_posting_sources.last_seen_at` remains provenance, not a feed visibility
-gate.
-
-The application URL is **source-supplied, not employer-verified**. The future
-UI must label the external button "Open application link" rather than claim it
-is an active official posting.
-
-## 5. Matching rule
-
-The product target is intentionally narrow:
-
-1. **US scope:** include US cities, `United States`, and remote roles open to
-   applicants in the United States;
-   exclude explicitly non-US-only roles.
-2. **Engineering family:** ingest only the SpeedyApply new-grad USA file and
-   Simplify's Software Engineering section; do not add our own role-title
-   classifier in the first milestone.
-3. **New-grad level:** trust the source category in the first milestone. The
-   UI must identify the source so users understand this is source-curated data.
-   Include 2026 and 2027 bachelor's/master's new-grad roles; exclude
-   PhD-specific roles.
-
-Apply a deterministic U.S. filter: keep clearly U.S. locations and U.S. remote
-roles; exclude clearly non-U.S. locations. Unknown or mixed locations are not
-persisted. No LLM is needed.
-
-## 6. API and website MVP
-
-### Public API
-
-- `GET /health` — service and database health.
-- `GET /v1/jobs` — paginated feed; filters: `q`, `location`, `remote`,
-  `posted_within_hours`, `listed_within_hours`, `company`, and repeatable
-  `sources` values such as `sources=simplify&sources=speedyapply`; optional
-  `sort_by` (`listed_at` or `company_name`) and `sort_direction` (`asc` or
-  `desc`) control ordering. Results default to newest listed first. The default
-  page is 50 jobs at `offset=0` and includes all sources.
-
-`posted_within_hours` filters on `first_seen_at`; the UI should label it
-"Found by GradRadar" rather than implying it is the employer's published
-timestamp.
-
-`listed_within_hours` filters by a rolling number of hours. The UI offers a
-48-hour option for roles listed yesterday as well as today.
-
-### Initial UI
-
-One page is enough: freshness timestamp, search, location/remote filters, and
-a newest-first job list. Each card shows company, role, location,
-estimated listing time, GradRadar first-seen time, source, and an **Open
-application link** button. Preserve query filters in the URL so a filtered feed
-can be shared.
-
-## 7. Authentication and notifications after the web MVP
-
-The website has a Google-only Supabase Auth entry point. A browser session is
-kept by Supabase after a successful sign-in. It does not create application
-profiles or grant access to private data yet; subscriptions will attach to the
-authenticated user in a later phase.
-
-Telegram is the first
-implementation. A user opens the bot, sends `/start`,
-and then selects basic preferences (US location/remote and immediate vs digest).
-The service stores the Telegram chat ID only after that opt-in. When a job
-first enters the public feed, it creates one outbox record per matching active
-subscriber. A worker sends the message and records success/failure; retries
-must reuse the same outbox row so a job is not repeatedly announced.
-
-Start with a global US-new-grad feed and either no preferences or just remote
-vs on-site. Do not build free-form keyword alerts, WhatsApp, Discord, and
-iMessage together. That is product surface without proving the core feed is
-accurate.
-
-## 8. Requirements to keep us honest
-
-### Functional requirements
-
-- User can browse current matching jobs without creating an account.
-- User can filter jobs by keyword, US location, remote status, company, and
-  how recently GradRadar found them.
-- User can open the source-supplied application link and see the tracker source
-  for every displayed job.
-- User can see when GradRadar first observed a role.
-
-### Non-functional requirements
-
-- The system should be able to detect a change to an onboarded source file
-  within 15 minutes between 7 AM and 9 PM Pacific, and within two hours
-  overnight, under normal operation.
-- The system should be able to ingest repeated fetches idempotently and avoid
-  duplicate job records.
-- The system should be able to continue processing healthy sources when one
-  source fails and expose its failure state.
-- The system should be able to explain each displayed job with its source URL.
-- The system should be able to reject a malformed source revision without
-  removing currently displayed jobs.
-- The system should be able to store secrets only in environment configuration,
-  never in source control or the public API.
-
-## 9. Open decisions
-
-1. Is `remote in the US` eligible, and should location filters include visas or
-   sponsorship only as a later metadata field?
-2. Where do you want to deploy? A simple first choice is one API/worker service,
-   managed Postgres, and a static frontend; the exact provider can wait until
-   Phase 3.
+Apply the SQL migrations in `supabase/migrations/20261029000000_configurable_sources.sql` and `supabase/migrations/20261029000001_source_apply_urls.sql` before deploying the updated worker and API. Set `SOURCE_ADMIN_USER_IDS` in Railway to the intended Supabase Auth user UUIDs. Deploy the website after the API. Inspect the first sync of each seeded board; this initial backlog must not trigger alerts.
