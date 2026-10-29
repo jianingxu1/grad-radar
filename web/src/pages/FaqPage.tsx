@@ -1,11 +1,9 @@
 import type { ReactNode } from "react";
-import { PageHeader } from "../components/PageHeader";
+import { PageShell } from "../components/PageShell";
 
 export function FaqPage({ onNavigate }: { onNavigate: (path: "/") => void }) {
   return (
-    <main className="flex min-h-screen flex-col bg-white text-slate-950">
-      <div className="mx-auto w-full max-w-4xl flex-1 px-5 py-5 sm:px-8">
-        <PageHeader label="Frequently asked questions" onNavigate={onNavigate} />
+    <PageShell label="Frequently asked questions" onNavigate={onNavigate}>
 
         <section aria-labelledby="faq-heading">
           <h2 className="text-3xl font-semibold tracking-tight" id="faq-heading">
@@ -53,13 +51,7 @@ export function FaqPage({ onNavigate }: { onNavigate: (path: "/") => void }) {
             </FaqItem>
           </dl>
         </section>
-      </div>
-      <footer className="border-t border-slate-200 px-5 py-5 sm:px-8">
-        <div className="mx-auto max-w-4xl text-sm font-medium tracking-tight text-slate-400">
-          © GradRadar
-        </div>
-      </footer>
-    </main>
+    </PageShell>
   );
 }
 

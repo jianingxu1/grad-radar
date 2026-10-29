@@ -7,7 +7,7 @@ import {
   type NotificationSettings,
 } from "../api";
 import { formatDate } from "../components/format";
-import { PageHeader } from "../components/PageHeader";
+import { PageShell } from "../components/PageShell";
 
 export function NotificationSettingsPage({
   user,
@@ -78,9 +78,7 @@ export function NotificationSettingsPage({
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-white text-slate-950">
-      <div className="mx-auto w-full max-w-4xl flex-1 px-5 py-5 sm:px-8">
-        <PageHeader label="Notifications" onNavigate={onNavigate} />
+    <PageShell label="Notifications" onNavigate={onNavigate}>
         <section aria-labelledby="notifications-heading">
           <h2 className="text-3xl font-semibold tracking-tight" id="notifications-heading">
             Notifications
@@ -138,8 +136,7 @@ export function NotificationSettingsPage({
             </section>
           </>
         )}
-      </div>
-    </main>
+    </PageShell>
   );
 }
 

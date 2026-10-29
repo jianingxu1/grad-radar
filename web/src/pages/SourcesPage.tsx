@@ -8,7 +8,7 @@ import {
   type SourceDetail,
   type SourceFilter,
 } from "../api";
-import { PageHeader } from "../components/PageHeader";
+import { PageShell } from "../components/PageShell";
 import { formatDate, sourceLabel } from "../components/format";
 
 type BoardPlatform = "greenhouse" | "ashby" | "lever" | "oracle" | "smartrecruiters";
@@ -113,9 +113,7 @@ export function SourcesPage({
   }
 
   return (
-    <main className="min-h-screen bg-white px-5 py-5 text-slate-950 sm:px-8">
-      <div className="mx-auto max-w-[1400px]">
-        <PageHeader label="Sources" onNavigate={onNavigate} />
+    <PageShell label="Sources" onNavigate={onNavigate}>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold">Sources</h2>
@@ -300,8 +298,7 @@ export function SourcesPage({
             </div>
           </form>
         )}
-      </div>
-    </main>
+    </PageShell>
   );
 }
 

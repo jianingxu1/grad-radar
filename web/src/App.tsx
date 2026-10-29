@@ -248,14 +248,18 @@ export function App() {
 
   return (
     <main className="flex min-h-screen flex-col bg-white text-slate-950">
+      <div className="border-b border-slate-200">
+        <div className="mx-auto w-full max-w-[1800px] px-5 pt-5 sm:px-8">
+          <FeedHeader
+            user={user}
+            googleLoadError={googleLoadError}
+            googleButtonRef={googleButtonRef}
+            onNavigate={navigate}
+            onSignOut={() => void signOut()}
+          />
+        </div>
+      </div>
       <div className="mx-auto w-full max-w-[1800px] flex-1 px-5 py-5 sm:px-8">
-        <FeedHeader
-          user={user}
-          googleLoadError={googleLoadError}
-          googleButtonRef={googleButtonRef}
-          onNavigate={navigate}
-          onSignOut={() => void signOut()}
-        />
         {authError && (
           <p className="mb-3 text-sm text-red-700" role="alert">
             {authError}

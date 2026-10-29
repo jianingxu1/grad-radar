@@ -192,6 +192,10 @@ describe("App", () => {
       screen.getByText(/How do I set up Telegram notifications to get the latest postings\?/i),
     ).toBeVisible();
     expect(screen.getByText(/Stop notifications.*send \/stop to the bot/i)).toBeVisible();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Frequently asked questions" }),
+    ).toBeVisible();
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("© GradRadar");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -395,6 +399,8 @@ describe("App", () => {
       "href",
       "https://job-boards.greenhouse.io/stripe",
     );
+    expect(screen.getByRole("heading", { level: 1, name: "Sources" })).toBeVisible();
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("© GradRadar");
     expect(screen.queryByRole("button", { name: "Add Source" })).not.toBeInTheDocument();
   });
 
@@ -621,6 +627,8 @@ describe("App", () => {
 
     expect(screen.getByRole("heading", { level: 2, name: "Notifications" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Back to jobs" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 1, name: "Notifications" })).toBeVisible();
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("© GradRadar");
     expect(screen.getByText(/Manage Telegram alerts/i)).toBeVisible();
     expect(
       await screen.findByText(

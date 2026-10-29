@@ -16,7 +16,7 @@ export function FeedHeader({
   onSignOut: () => void;
 }) {
   return (
-    <header className="mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-slate-200 pb-4">
+    <header className="mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 pb-4">
       <button
         aria-label="Go to GradRadar home"
         className="flex cursor-pointer items-center gap-3 bg-transparent p-0 text-left text-slate-950 shadow-none hover:bg-transparent"
