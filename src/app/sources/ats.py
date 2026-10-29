@@ -8,7 +8,7 @@ from urllib.parse import quote
 
 import httpx
 
-Platform = Literal["greenhouse", "ashby", "lever", "oracle"]
+Platform = Literal["greenhouse", "ashby", "lever", "oracle", "smartrecruiters"]
 OracleConfig = dict[str, str]
 
 
@@ -38,6 +38,8 @@ def board_url(
         return f"https://job-boards.greenhouse.io/{board_name}"
     if platform == "ashby":
         return f"https://jobs.ashbyhq.com/{board_name}"
+    if platform == "smartrecruiters":
+        return f"https://careers.smartrecruiters.com/{board_name}"
     return f"https://jobs.lever.co/{board_name}"
 
 
@@ -57,6 +59,25 @@ def fetch_board(
     if platform == "ashby":
         url = f"https://api.ashbyhq.com/posting-api/job-board/{board_name}"
         return parse_ashby(_json(client.get(url)))
+    if platform == "smartrecruiters":
+        url = f"https://api.smartrecruiters.com/v1/companies/{board_name}/postings"
+        jobs: list[BoardJob] = []
+        for offset in range(0, 100000, 100):
+            payload = _json(client.get(url, params={"limit": 100, "offset": offset}))
+            rows = _rows(payload, "content")
+            total_found = payload.get("totalFound")
+            if not isinstance(total_found, int) or total_found < 0:
+                raise ValueError("SmartRecruiters response must contain totalFound")
+            for row in rows:
+                posting_id = _required_text(row, "id")
+                details_url = (
+                    f"https://api.smartrecruiters.com/v1/companies/{board_name}/postings/"
+                    f"{quote(posting_id, safe='-_.')}"
+                )
+                jobs.append(parse_smartrecruiters_detail(_json(client.get(details_url))))
+            if len(rows) < 100 or offset + len(rows) >= total_found:
+                return jobs
+        raise ValueError("SmartRecruiters board exceeds pagination limit")
     url = f"https://api.lever.co/v0/postings/{board_name}"
     jobs: list[BoardJob] = []
     for skip in range(0, 10000, 100):
@@ -152,6 +173,46 @@ def parse_oracle(payload: Any, config: OracleConfig) -> tuple[list[BoardJob], in
             )
         )
     return jobs, total
+
+
+def parse_smartrecruiters_detail(row: Any) -> BoardJob:
+    if not isinstance(row, dict):
+        raise ValueError("SmartRecruiters posting must be an object")
+    location = row.get("location") or {}
+    department = row.get("department") or {}
+    employment = row.get("typeOfEmployment") or {}
+    ad = row.get("jobAd") or {}
+    sections = ad.get("sections") or {} if isinstance(ad, dict) else {}
+    description_parts = (
+        [
+            section.get("text", "")
+            for section in sections.values()
+            if isinstance(section, dict) and isinstance(section.get("text"), str)
+        ]
+        if isinstance(sections, dict)
+        else []
+    )
+    if (
+        not isinstance(location, dict)
+        or not isinstance(department, dict)
+        or not isinstance(employment, dict)
+    ):
+        raise ValueError("SmartRecruiters location and classification fields must be objects")
+    city_region = ", ".join(
+        value for value in (location.get("city"), location.get("region")) if value
+    )
+    location_text = ", ".join(value for value in (city_region, location.get("country")) if value)
+    return BoardJob(
+        posting_id=_required_text(row, "id"),
+        title=_required_text(row, "name"),
+        location=location_text or ("Remote" if location.get("remote") else "Unknown"),
+        apply_url=_required_text(row, "applyUrl"),
+        description="\n\n".join(description_parts),
+        department=str(department.get("label") or ""),
+        employment_type=str(employment.get("label") or ""),
+        listed_at=_date(row.get("releasedDate")),
+        country=location.get("country"),
+    )
 
 
 def parse_greenhouse(payload: Any) -> list[BoardJob]:

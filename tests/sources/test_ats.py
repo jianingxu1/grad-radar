@@ -11,6 +11,7 @@ from app.sources.ats import (
     parse_greenhouse,
     parse_lever,
     parse_oracle,
+    parse_smartrecruiters_detail,
 )
 
 
@@ -181,6 +182,82 @@ def test_oracle_http_error_and_invalid_config_fail() -> None:
         fetch_board(client, "oracle", "uber", {"host": host, "site_number": "CX"})
     with httpx.Client() as client, pytest.raises(ValueError):
         fetch_board(client, "oracle", "uber", {"host": "evil.com", "site_number": "CX_1"})
+
+
+def test_smartrecruiters_detail_parses_board_job_fields() -> None:
+    job = parse_smartrecruiters_detail(
+        {
+            "id": "12345",
+            "name": "Software Engineer, New Grad",
+            "location": {"city": "San Francisco", "region": "CA", "country": "US"},
+            "applyUrl": "https://jobs.smartrecruiters.com/LinkedIn3/12345-apply",
+            "releasedDate": "2026-10-28T12:00:00Z",
+            "department": {"label": "Engineering"},
+            "typeOfEmployment": {"label": "Full-time"},
+            "jobAd": {"sections": {"jobDescription": {"text": "Build products."}}},
+        }
+    )
+    assert job.posting_id == "12345"
+    assert job.title == "Software Engineer, New Grad"
+    assert job.location == "San Francisco, CA, US"
+    assert job.description == "Build products."
+    assert job.department == "Engineering"
+    assert job.employment_type == "Full-time"
+    assert job.listed_at == datetime(2026, 10, 28, 12, tzinfo=UTC)
+
+
+def test_smartrecruiters_empty_and_malformed_details() -> None:
+    assert (
+        parse_smartrecruiters_detail(
+            {"id": "1", "name": "Role", "location": {}, "applyUrl": "https://apply.test/1"}
+        ).location
+        == "Unknown"
+    )
+    with pytest.raises(ValueError):
+        parse_smartrecruiters_detail({"name": "Missing id"})
+
+
+@respx.mock
+def test_smartrecruiters_request_url_and_details() -> None:
+    listing = respx.get("https://api.smartrecruiters.com/v1/companies/LinkedIn3/postings").mock(
+        return_value=httpx.Response(200, json={"totalFound": 1, "content": [{"id": "123"}]})
+    )
+    details = respx.get("https://api.smartrecruiters.com/v1/companies/LinkedIn3/postings/123").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "id": "123",
+                "name": "Role",
+                "location": {},
+                "applyUrl": "https://apply.test/123",
+            },
+        )
+    )
+    with httpx.Client() as client:
+        jobs = fetch_board(client, "smartrecruiters", "LinkedIn3")
+    assert len(jobs) == 1
+    assert listing.called and details.called
+    assert board_url("smartrecruiters", "LinkedIn3") == (
+        "https://careers.smartrecruiters.com/LinkedIn3"
+    )
+
+
+@respx.mock
+def test_smartrecruiters_empty_and_malformed_listing_responses() -> None:
+    respx.get("https://api.smartrecruiters.com/v1/companies/Wise/postings").mock(
+        return_value=httpx.Response(200, json={"totalFound": 0, "content": []})
+    )
+    with httpx.Client() as client:
+        assert fetch_board(client, "smartrecruiters", "Wise") == []
+
+
+@respx.mock
+def test_smartrecruiters_malformed_listing_response_fails() -> None:
+    respx.get("https://api.smartrecruiters.com/v1/companies/Wise/postings").mock(
+        return_value=httpx.Response(200, json={"content": []})
+    )
+    with httpx.Client() as client, pytest.raises(ValueError):
+        fetch_board(client, "smartrecruiters", "Wise")
 
 
 @respx.mock

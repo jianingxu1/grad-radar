@@ -1,12 +1,12 @@
 # GradRadar system design
 
-GradRadar is a public feed of U.S. new-grad and early-career software engineering jobs. The backend ingests two community GitHub trackers and configured company boards on Greenhouse, Ashby, Lever, and Oracle Recruiting. The React site exposes a feed and a public Sources page. Google sign-in through Supabase Auth lets users manage Telegram notifications; source management is limited to allowlisted admins.
+GradRadar is a public feed of U.S. new-grad and early-career software engineering jobs. The backend ingests two community GitHub trackers and configured company boards on Greenhouse, Ashby, Lever, Oracle Recruiting, and SmartRecruiters. The React site exposes a feed and a public Sources page. Google sign-in through Supabase Auth lets users manage Telegram notifications; source management is limited to allowlisted admins.
 
 ## Sources and ingestion
 
 The `sources` table holds each source's platform, board name, company, enabled state, filter, priority, last successful sync, and sync status. The two GitHub rows retain their existing IDs. Company boards are bootstrapped from `src/app/sources/seed_boards.py`; the [board investigation](source-board-investigation-2026-10-28.md) records the initial API verification.
 
-Railway runs `python -m app.cli ingest` every 15 minutes. The worker bootstraps the two GitHub sources and configured company boards, fetches enabled sources independently, stores normalized jobs, and delivers pending Telegram notifications. GitHub parsers fetch changed revisions of the configured files. Company-board adapters call public, server-built API URLs and validate Greenhouse, Ashby, Lever, or Oracle responses. Lever and Oracle results are paginated. Oracle sources store their tenant hostname and career-site number in `platform_config`; the seeded Uber source uses `iaziqy.fa.ocs.oraclecloud.com` and `CX_1`. A valid empty board is a successful sync. A failed fetch or parse leaves existing job links untouched and records the error.
+Railway runs `python -m app.cli ingest` every 15 minutes. The worker bootstraps the two GitHub sources and configured company boards, fetches enabled sources independently, stores normalized jobs, and delivers pending Telegram notifications. GitHub parsers fetch changed revisions of the configured files. Company-board adapters call public, server-built API URLs and validate Greenhouse, Ashby, Lever, Oracle, or SmartRecruiters responses. Lever, Oracle, and SmartRecruiters results are paginated. Oracle sources store their tenant hostname and career-site number in `platform_config`; the seeded Uber source uses `iaziqy.fa.ocs.oraclecloud.com` and `CX_1`. SmartRecruiters posting details are fetched for descriptions and application URLs. A valid empty board is a successful sync. A failed fetch or parse leaves existing job links untouched and records the error.
 
 Board listings pass through the source's editable filter. The default requires a U.S. location, a full-time SWE title, and an explicit new-grad or early-career level; it excludes internships and senior roles. Ambiguous roles are omitted. A successful board sync marks roles absent from its current filtered result inactive. GitHub links remain active after a role disappears from a tracker. A job stays in the feed while at least one enabled source has an active link.
 
@@ -23,7 +23,7 @@ New jobs from a board's first successful sync appear in the feed without alerts.
 - `POST /v1/sources` and `PATCH /v1/sources/{id}` create or update company boards for admins. New and re-enabled boards are verified against their public API. GitHub sources cannot be edited through these endpoints.
 - `GET /v1/me/source-admin` tells an authenticated user whether the server's `SOURCE_ADMIN_USER_IDS` allowlist grants source management.
 
-The public `/sources` page shows all sources and their status. Admins can add Greenhouse, Ashby, Lever, or Oracle Recruiting boards and edit their filters. Oracle configuration requires an Oracle Cloud tenant hostname and a site number such as `CX_1`. The feed loads available source choices from the API and shows each job's source-provided links.
+The public `/sources` page shows all sources and their status. Admins can add Greenhouse, Ashby, Lever, Oracle Recruiting, or SmartRecruiters boards and edit their filters. Oracle configuration requires an Oracle Cloud tenant hostname and a site number such as `CX_1`. The feed loads available source choices from the API and shows each job's source-provided links.
 
 ## Release order
 

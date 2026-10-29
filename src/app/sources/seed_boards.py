@@ -105,6 +105,9 @@ SEED_BOARDS = (
     SeedBoard("lever", "shieldai", "Shield AI"),
     SeedBoard("lever", "spotify", "Spotify"),
     SeedBoard("lever", "weride", "WeRide"),
+    SeedBoard("smartrecruiters", "LinkedIn3", "LinkedIn"),
+    SeedBoard("smartrecruiters", "ServiceNow", "ServiceNow"),
+    SeedBoard("smartrecruiters", "Wise", "Wise"),
 )
 
 PREVIOUS_DEFAULT_FILTER = {

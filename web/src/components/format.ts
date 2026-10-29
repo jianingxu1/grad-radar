@@ -3,11 +3,20 @@ export function sourceLabel(name: string): string {
   if (name === "speedyapply") return "SpeedyApply";
   const [platform, board] = name.split(":", 2);
   if (!board) return name;
-  const knownCompanyNames: Record<string, string> = { openai: "OpenAI", shieldai: "Shield AI" };
+  const knownCompanyNames: Record<string, string> = {
+    openai: "OpenAI",
+    shieldai: "Shield AI",
+    linkedin3: "LinkedIn",
+    servicenow: "ServiceNow",
+  };
   const company =
     knownCompanyNames[board] ??
     board.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-  return `${company} (${platform[0]?.toUpperCase()}${platform.slice(1)})`;
+  const platformLabel =
+    platform === "smartrecruiters"
+      ? "SmartRecruiters"
+      : `${platform[0]?.toUpperCase()}${platform.slice(1)}`;
+  return `${company} (${platformLabel})`;
 }
 
 export function formatDate(value: string | null): string {

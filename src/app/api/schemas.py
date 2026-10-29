@@ -30,7 +30,7 @@ class SourceDetailResponse(SourceFreshnessResponse):
 
 
 class SourceCreateRequest(BaseModel):
-    platform: Literal["greenhouse", "ashby", "lever", "oracle"]
+    platform: Literal["greenhouse", "ashby", "lever", "oracle", "smartrecruiters"]
     board_name: str = Field(min_length=1, max_length=100)
     company_name: str = Field(min_length=1, max_length=100)
     filter_config: dict[str, list[str]] | None = None

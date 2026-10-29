@@ -11,7 +11,7 @@ import {
 import { PageHeader } from "../components/PageHeader";
 import { formatDate, sourceLabel } from "../components/format";
 
-type BoardPlatform = "greenhouse" | "ashby" | "lever" | "oracle";
+type BoardPlatform = "greenhouse" | "ashby" | "lever" | "oracle" | "smartrecruiters";
 
 export function SourcesPage({
   user,
@@ -150,6 +150,7 @@ export function SourcesPage({
                 <option value="ashby">Ashby</option>
                 <option value="lever">Lever</option>
                 <option value="oracle">Oracle Recruiting</option>
+                <option value="smartrecruiters">SmartRecruiters</option>
               </select>
             </label>
             {platform === "oracle" && (

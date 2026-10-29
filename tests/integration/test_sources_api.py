@@ -35,6 +35,12 @@ def test_sources_list_is_public_and_create_requires_admin(
     assert created.status_code == 201
     assert created.json()["name"] == "ashby:openai"
     assert created.json()["filter_config"]["level_terms"]
+    smartrecruiters = client.post(
+        "/v1/sources",
+        json={"platform": "smartrecruiters", "board_name": "LinkedIn3", "company_name": "LinkedIn"},
+    )
+    assert smartrecruiters.status_code == 201
+    assert smartrecruiters.json()["url"] == "https://careers.smartrecruiters.com/LinkedIn3"
     assert client.post("/v1/sources", json=payload).status_code == 409
     oracle_payload = {
         "platform": "oracle",
@@ -83,6 +89,12 @@ def test_sources_list_is_public_and_create_requires_admin(
     assert spaced.status_code == 201
     assert spaced.json()["url"] == "https://jobs.ashbyhq.com/Superhuman%20Platform%20Inc"
     assert spaced.json()["board_name"] == "Superhuman Platform Inc"
+    smartrecruiters = client.post(
+        "/v1/sources",
+        json={"platform": "smartrecruiters", "board_name": "LinkedIn3", "company_name": "LinkedIn"},
+    )
+    assert smartrecruiters.status_code == 201
+    assert smartrecruiters.json()["url"] == "https://careers.smartrecruiters.com/LinkedIn3"
     assert (
         client.post(
             "/v1/sources",
@@ -98,6 +110,20 @@ def test_sources_list_is_public_and_create_requires_admin(
         client.post(
             "/v1/sources",
             json={"platform": "ashby", "board_name": "../bad", "company_name": "Bad"},
+        ).status_code
+        == 422
+    )
+    assert (
+        client.post(
+            "/v1/sources",
+            json={"platform": "smartrecruiters", "board_name": "../bad", "company_name": "Bad"},
+        ).status_code
+        == 422
+    )
+    assert (
+        client.post(
+            "/v1/sources",
+            json={"platform": "smartrecruiters", "board_name": "../bad", "company_name": "Bad"},
         ).status_code
         == 422
     )
