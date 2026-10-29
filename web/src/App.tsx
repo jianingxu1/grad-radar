@@ -5,7 +5,7 @@ import { FeedFilters } from "./components/FeedFilters";
 import { FeedHeader } from "./components/FeedHeader";
 import { JobFeed } from "./components/JobFeed";
 import { Pagination } from "./components/Pagination";
-import { defaultFilters, filtersFromSearch, filtersToSearch } from "./filterState";
+import { NO_SOURCES, defaultFilters, filtersFromSearch, filtersToSearch } from "./filterState";
 import { FaqPage } from "./pages/FaqPage";
 import { NotificationSettingsPage } from "./pages/NotificationSettingsPage";
 import { SourcesPage } from "./pages/SourcesPage";
@@ -190,10 +190,14 @@ export function App() {
   }
 
   function toggleSource(source: SourceName): void {
-    const sources = filters.sources.includes(source)
-      ? filters.sources.filter((value) => value !== source)
-      : [...filters.sources, source];
-    changeFilters({ sources });
+    const available = page?.source_freshness.map((item) => item.name) ?? [];
+    const selected = filters.sources.length === 0 ? available : filters.sources;
+    const next = selected.includes(source)
+      ? selected.filter((value) => value !== source)
+      : [...selected.filter((value) => value !== NO_SOURCES), source];
+    changeFilters({
+      sources: next.length === 0 ? [NO_SOURCES] : next.length === available.length ? [] : next,
+    });
   }
 
   function changePage(nextPage: number): void {
@@ -261,6 +265,8 @@ export function App() {
           filters={filters}
           onChange={changeFilters}
           onToggleSource={toggleSource}
+          onUncheckAll={() => changeFilters({ sources: [NO_SOURCES] })}
+          onCheckAll={() => changeFilters({ sources: [] })}
           sources={page?.source_freshness.map((source) => source.name) ?? []}
         />
         <JobFeed

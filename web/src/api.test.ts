@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { PAGE_SIZE, toSearchParams } from "./api";
-import { filtersFromSearch, filtersToSearch } from "./filterState";
+import { NO_SOURCES, filtersFromSearch, filtersToSearch } from "./filterState";
 
 describe("job feed query state", () => {
   it("serializes API filters with repeated source parameters and an offset", () => {
@@ -43,5 +43,12 @@ describe("job feed query state", () => {
     const filters = filtersFromSearch("?sources=lever%3Apalantir");
     expect(filters.sources).toEqual(["lever:palantir"]);
     expect(filtersToSearch(filters)).toContain("sources=lever%3Apalantir");
+  });
+
+  it("keeps an explicit no-sources selection in the URL and API query", () => {
+    const filters = filtersFromSearch(`?sources=${NO_SOURCES}`);
+    expect(filters.sources).toEqual([NO_SOURCES]);
+    expect(filtersToSearch(filters)).toContain(`sources=${NO_SOURCES}`);
+    expect(toSearchParams(filters).getAll("sources")).toEqual([NO_SOURCES]);
   });
 });

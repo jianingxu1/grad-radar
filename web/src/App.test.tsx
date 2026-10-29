@@ -266,21 +266,31 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
   });
 
-  it("only toggles a tracker source when its checkbox is clicked", async () => {
+  it("shows a grouped source checklist with all checked and can clear it", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
     render(<App />);
 
     await screen.findByText("Platform Engineer, New Grad");
+    fireEvent.click(screen.getByText("All sources (2)"));
     const sourceFilters = screen.getByRole("group", { name: "Source" });
+    expect(within(sourceFilters).getByText("GitHub sources")).toBeVisible();
+    expect(within(sourceFilters).getByText("Company job boards")).toBeVisible();
     const simplifyCheckbox = within(sourceFilters).getByRole("checkbox", { name: "Simplify" });
-
-    fireEvent.click(within(sourceFilters).getByText("Simplify"));
-    expect(simplifyCheckbox).not.toBeChecked();
-    expect(window.location.search).not.toContain("sources=simplify");
+    const speedyCheckbox = within(sourceFilters).getByRole("checkbox", { name: "SpeedyApply" });
+    expect(simplifyCheckbox).toBeChecked();
+    expect(speedyCheckbox).toBeChecked();
 
     fireEvent.click(simplifyCheckbox);
-    await waitFor(() => expect(window.location.search).toContain("sources=simplify"));
+    await waitFor(() => expect(window.location.search).toContain("sources=speedyapply"));
+    expect(simplifyCheckbox).not.toBeChecked();
+    fireEvent.click(within(sourceFilters).getByRole("button", { name: "Uncheck all" }));
+    expect(simplifyCheckbox).not.toBeChecked();
+    expect(speedyCheckbox).not.toBeChecked();
+    expect(window.location.search).toContain("sources=__none__");
+    fireEvent.click(within(sourceFilters).getByRole("button", { name: "Check all" }));
     expect(simplifyCheckbox).toBeChecked();
+    expect(speedyCheckbox).toBeChecked();
+    expect(window.location.search).not.toContain("sources=");
   });
 
   it("shows company board sources in feed filters", async () => {
@@ -301,9 +311,14 @@ describe("App", () => {
     );
     render(<App />);
 
-    const checkbox = await screen.findByRole("checkbox", { name: "Palantir (Lever)" });
+    await screen.findByText("All sources (3)");
+    fireEvent.click(screen.getByText("All sources (3)"));
+    const sourceFilters = screen.getByRole("group", { name: "Source" });
+    fireEvent.click(within(sourceFilters).getByRole("button", { name: "Uncheck all" }));
+    const checkbox = within(sourceFilters).getByRole("checkbox", { name: "Palantir (Lever)" });
     fireEvent.click(checkbox);
     expect(window.location.search).toContain("sources=lever%3Apalantir");
+    expect(checkbox).toBeChecked();
   });
 
   it("shows the public Sources page without admin controls", async () => {

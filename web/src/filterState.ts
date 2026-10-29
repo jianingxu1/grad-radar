@@ -1,5 +1,7 @@
 import type { JobFilters, SourceName } from "./api";
 
+export const NO_SOURCES = "__none__";
+
 export const defaultFilters: JobFilters = {
   q: "",
   listedWithinHours: "",
