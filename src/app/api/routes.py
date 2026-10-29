@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from sqlalchemy import case, exists, func, or_, select, text
+from sqlalchemy import exists, func, or_, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.api.schemas import (
@@ -30,7 +30,6 @@ from app.services.notifications import (
     disable_connection,
 )
 from app.services.telegram import TelegramClient
-from app.sources.definitions import SOURCES, SourceName
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +60,7 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         company: str | None = None,
         posted_within_hours: Annotated[int | None, Query(ge=1)] = None,
         listed_within_hours: Annotated[int | None, Query(ge=1)] = None,
-        sources: Annotated[list[SourceName] | None, Query()] = None,
+        sources: Annotated[list[str] | None, Query()] = None,
         sort_by: Literal["company_name", "listed_at"] = "listed_at",
         sort_direction: Literal["asc", "desc"] = "desc",
         offset: Annotated[int, Query(ge=0)] = 0,
@@ -73,18 +72,20 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
             .join(Source, JobPostingSource.source_id == Source.id)
             .where(
                 JobPostingSource.job_posting_id == JobPosting.id,
+                JobPostingSource.active,
+                Source.enabled,
             )
         )
         if sources:
             source_link = source_link.where(Source.name.in_(sources))
-        source_priority = case(
-            {str(source.name): source.priority for source in SOURCES}, value=Source.name, else_=999
-        )
+        source_priority = Source.priority
         source_position = (
             select(JobPostingSource.source_position)
             .join(Source, JobPostingSource.source_id == Source.id)
             .where(
                 JobPostingSource.job_posting_id == JobPosting.id,
+                JobPostingSource.active,
+                Source.enabled,
             )
             .order_by(source_priority, JobPostingSource.source_position.asc().nulls_last())
             .limit(1)
@@ -95,6 +96,8 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
             .join(JobPostingSource, JobPostingSource.source_id == Source.id)
             .where(
                 JobPostingSource.job_posting_id == JobPosting.id,
+                JobPostingSource.active,
+                Source.enabled,
             )
             .order_by(source_priority, JobPostingSource.source_position.asc().nulls_last())
             .limit(1)
@@ -127,9 +130,9 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         total = session.scalar(select(func.count()).select_from(statement.subquery()))
         if sort_by == "listed_at":
             date_order = (
-                JobPosting.listed_at.asc().nulls_last()
+                func.coalesce(JobPosting.listed_at, JobPosting.first_seen_at).asc()
                 if sort_direction == "asc"
-                else JobPosting.listed_at.desc().nulls_last()
+                else func.coalesce(JobPosting.listed_at, JobPosting.first_seen_at).desc()
             )
             position_order = (
                 source_position.desc().nulls_last()
@@ -285,6 +288,7 @@ def _sources_by_job(session: Session, job_ids: list[UUID]) -> dict[UUID, list[So
         select(JobPostingSource.job_posting_id, Source.name, Source.url)
         .join(JobPostingSource, JobPostingSource.source_id == Source.id)
         .where(JobPostingSource.job_posting_id.in_(job_ids))
+        .where(JobPostingSource.active, Source.enabled)
         .order_by(JobPostingSource.job_posting_id, Source.name)
     ).all()
     for job_id, name, url in rows:
@@ -299,7 +303,7 @@ def _source_freshness(session: Session) -> list[SourceFreshnessResponse]:
             url=source.url,
             last_successful_sync_at=source.last_successful_sync_at,
         )
-        for source in session.scalars(select(Source).order_by(Source.name))
+        for source in session.scalars(select(Source).where(Source.enabled).order_by(Source.name))
     ]
 
 

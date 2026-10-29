@@ -46,12 +46,19 @@ def ingest_all(
     session_factory: sessionmaker[Session], github_token: str | None = None
 ) -> list[IngestionSummary]:
     started_at = perf_counter()
-    logger.info("ingestion.batch.started source_count=%s", len(SOURCES))
+    with session_factory.begin() as session:
+        bootstrap_sources(session)
+        enabled_names = set(
+            session.scalars(select(Source.name).where(Source.enabled, Source.platform == "github"))
+        )
+    definitions = [source for source in SOURCES if source.name in enabled_names]
+    logger.info("ingestion.batch.started source_count=%s", len(definitions))
     headers = {"Authorization": f"Bearer {github_token}"} if github_token else {}
     cycle_at = datetime.now(UTC)
     with httpx.Client(headers=headers, timeout=20) as client:
         summaries = [
-            ingest_source(session_factory, client, source, cycle_at=cycle_at) for source in SOURCES
+            ingest_source(session_factory, client, source, cycle_at=cycle_at)
+            for source in definitions
         ]
     new_ids = [job_id for summary in summaries for job_id in summary.new_job_ids]
     notifications_enqueued = sum(summary.notifications_enqueued for summary in summaries)

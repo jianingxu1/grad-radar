@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config.settings import get_settings
 from app.database.session import create_session_factory, transaction
 from app.logging import configure_logging
+from app.services.board_ingestion import ingest_all_boards
 from app.services.github_ingestion import IngestionSummary, ingest_all
 from app.services.notifications import deliver_pending
 from app.services.telegram import TelegramClient
@@ -21,6 +22,8 @@ def ingest_and_deliver(
     telegram_bot_token: str | None,
 ) -> list[IngestionSummary]:
     summaries = ingest_all(session_factory, github_token)
+    board_results = ingest_all_boards(session_factory)
+    summaries.extend(IngestionSummary(source=name, status=status) for name, status in board_results)
     with (
         session_factory.begin() as session,
         TelegramClient(telegram_bot_token) as telegram,
