@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from typing import Literal
 from uuid import UUID
@@ -29,9 +30,23 @@ class SourceDetailResponse(SourceFreshnessResponse):
 
 class SourceCreateRequest(BaseModel):
     platform: Literal["greenhouse", "ashby", "lever"]
-    board_name: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$")
+    board_name: str = Field(min_length=1, max_length=100)
     company_name: str = Field(min_length=1, max_length=100)
     filter_config: dict[str, list[str]] | None = None
+
+    @field_validator("board_name")
+    @classmethod
+    def require_safe_board_name(cls, value: str, info: object) -> str:
+        value = value.strip()
+        platform = getattr(info, "data", {}).get("platform")
+        pattern = (
+            r"[A-Za-z0-9][A-Za-z0-9 _.-]{0,99}"
+            if platform == "ashby"
+            else r"[A-Za-z0-9][A-Za-z0-9_-]{0,99}"
+        )
+        if not re.fullmatch(pattern, value):
+            raise ValueError("invalid board name")
+        return value
 
     @field_validator("company_name")
     @classmethod

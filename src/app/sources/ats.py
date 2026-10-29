@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
+from urllib.parse import quote
 
 import httpx
 
@@ -23,6 +24,7 @@ class BoardJob:
 
 
 def board_url(platform: Platform, board_name: str) -> str:
+    board_name = quote(board_name, safe="-_.")
     if platform == "greenhouse":
         return f"https://job-boards.greenhouse.io/{board_name}"
     if platform == "ashby":
@@ -31,6 +33,7 @@ def board_url(platform: Platform, board_name: str) -> str:
 
 
 def fetch_board(client: httpx.Client, platform: Platform, board_name: str) -> list[BoardJob]:
+    board_name = quote(board_name, safe="-_.")
     if platform == "greenhouse":
         url = f"https://boards-api.greenhouse.io/v1/boards/{board_name}/jobs"
         return parse_greenhouse(_json(client.get(url, params={"content": "true"})))

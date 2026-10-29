@@ -4,7 +4,7 @@ import httpx
 import pytest
 import respx
 
-from app.sources.ats import fetch_board, parse_ashby, parse_greenhouse, parse_lever
+from app.sources.ats import board_url, fetch_board, parse_ashby, parse_greenhouse, parse_lever
 
 
 def test_greenhouse_parse_skips_prospect_and_does_not_use_update_as_listing_date() -> None:
@@ -51,6 +51,19 @@ def test_ashby_parse_skips_unlisted_and_uses_published_date() -> None:
     assert len(jobs) == 1
     assert jobs[0].country == "USA"
     assert jobs[0].listed_at == datetime(2026, 10, 28, 12, tzinfo=UTC)
+
+
+@respx.mock
+def test_ashby_board_name_with_spaces_is_encoded() -> None:
+    endpoint = respx.get(
+        "https://api.ashbyhq.com/posting-api/job-board/Superhuman%20Platform%20Inc"
+    ).mock(return_value=httpx.Response(200, json={"jobs": []}))
+    with httpx.Client() as client:
+        assert fetch_board(client, "ashby", "Superhuman Platform Inc") == []
+    assert endpoint.called
+    assert board_url("ashby", "Superhuman Platform Inc") == (
+        "https://jobs.ashbyhq.com/Superhuman%20Platform%20Inc"
+    )
 
 
 def test_lever_parse_and_empty_board() -> None:

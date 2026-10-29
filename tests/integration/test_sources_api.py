@@ -36,6 +36,28 @@ def test_sources_list_is_public_and_create_requires_admin(
     assert created.json()["name"] == "ashby:openai"
     assert created.json()["filter_config"]["level_terms"]
     assert client.post("/v1/sources", json=payload).status_code == 409
+    spaced = client.post(
+        "/v1/sources",
+        json={
+            "platform": "ashby",
+            "board_name": "Superhuman Platform Inc",
+            "company_name": "Superhuman",
+        },
+    )
+    assert spaced.status_code == 201
+    assert spaced.json()["url"] == "https://jobs.ashbyhq.com/Superhuman%20Platform%20Inc"
+    assert spaced.json()["board_name"] == "Superhuman Platform Inc"
+    assert (
+        client.post(
+            "/v1/sources",
+            json={
+                "platform": "greenhouse",
+                "board_name": "Superhuman Platform Inc",
+                "company_name": "Bad",
+            },
+        ).status_code
+        == 422
+    )
     assert (
         client.post(
             "/v1/sources",
