@@ -1,16 +1,68 @@
+import re
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 
 class SourceResponse(BaseModel):
     name: str
     url: str
+    apply_url: str | None = None
 
 
-class SourceFreshnessResponse(SourceResponse):
+class SourceFreshnessResponse(BaseModel):
+    name: str
+    url: str
     last_successful_sync_at: datetime | None
+
+
+class SourceDetailResponse(SourceFreshnessResponse):
+    id: UUID
+    platform: str
+    board_name: str | None
+    company_name: str | None
+    enabled: bool
+    filter_config: dict[str, list[str]]
+    last_sync_status: str | None
+
+
+class SourceCreateRequest(BaseModel):
+    platform: Literal["greenhouse", "ashby", "lever"]
+    board_name: str = Field(min_length=1, max_length=100)
+    company_name: str = Field(min_length=1, max_length=100)
+    filter_config: dict[str, list[str]] | None = None
+
+    @field_validator("board_name")
+    @classmethod
+    def require_safe_board_name(cls, value: str, info: object) -> str:
+        value = value.strip()
+        platform = getattr(info, "data", {}).get("platform")
+        pattern = (
+            r"[A-Za-z0-9][A-Za-z0-9 _.-]{0,99}"
+            if platform == "ashby"
+            else r"[A-Za-z0-9][A-Za-z0-9_-]{0,99}"
+        )
+        if not re.fullmatch(pattern, value):
+            raise ValueError("invalid board name")
+        return value
+
+    @field_validator("company_name")
+    @classmethod
+    def require_company_name(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("company name cannot be blank")
+        return value.strip()
+
+
+class SourceUpdateRequest(BaseModel):
+    enabled: bool | None = None
+    filter_config: dict[str, list[str]] | None = None
+
+
+class SourceAdminResponse(BaseModel):
+    is_admin: bool
 
 
 class HealthResponse(BaseModel):

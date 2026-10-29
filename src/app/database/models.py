@@ -1,7 +1,17 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import BigInteger, FetchedValue, ForeignKey, MetaData, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    FetchedValue,
+    ForeignKey,
+    Integer,
+    MetaData,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -28,6 +38,15 @@ class Source(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, server_default=FetchedValue())
     name: Mapped[str] = mapped_column(String, unique=True)
     url: Mapped[str]
+    platform: Mapped[str] = mapped_column(String, default="github")
+    board_name: Mapped[str | None] = mapped_column(String)
+    company_name: Mapped[str | None] = mapped_column(String)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    filter_config: Mapped[dict] = mapped_column(JSONB, default=dict)
+    priority: Mapped[int] = mapped_column(Integer, default=100)
+    initial_sync_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_sync_status: Mapped[str | None] = mapped_column(String)
+    last_sync_error: Mapped[str | None] = mapped_column(Text)
     last_processed_revision_sha: Mapped[str | None]
     last_successful_sync_at: Mapped[datetime | None]
 
@@ -43,6 +62,8 @@ class JobPostingSource(Base):
     )
     last_seen_at: Mapped[datetime]
     source_position: Mapped[int | None]
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    apply_url: Mapped[str] = mapped_column(Text)
 
 
 class TelegramLinkIntent(Base):

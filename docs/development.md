@@ -3,8 +3,16 @@
 ## Production ingestion
 
 Railway runs `python -m app.cli ingest` every 15 minutes. Each run checks the
-GitHub sources, queues alerts for new jobs, and attempts pending Telegram
-deliveries.
+GitHub trackers and enabled company boards, queues eligible alerts for new
+jobs, and attempts pending Telegram deliveries. Board sync failures are
+recorded separately. The first successful sync of a board shows its matching
+jobs without alerting for its backlog.
+
+Set `SOURCE_ADMIN_USER_IDS` to a comma-separated list of Supabase Auth user
+UUIDs in the Railway environment to allow Add Source and filter editing.
+Apply database migrations before deploying a worker or API that uses their
+columns. The nine verified seed boards are created by the ingestion worker;
+existing disabled boards remain disabled.
 
 `.github/workflows/ingest.yml` is a manual backup for running ingestion from
 GitHub Actions. It does not set or run the production schedule.
@@ -29,4 +37,5 @@ uv run pre-commit run --all-files
 npm --prefix web run lint
 npm --prefix web run format:check
 npm --prefix web run test
+npm --prefix web run build
 ```

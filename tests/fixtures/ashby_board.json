@@ -1,0 +1,22 @@
+{
+  "apiVersion": "1",
+  "jobs": [
+    {
+      "title": "Research Engineer",
+      "location": "San Francisco",
+      "jobUrl": "https://jobs.ashbyhq.com/openai/240d459b-696d-43eb-8497-fab3e56ecd9b",
+      "applyUrl": "https://jobs.ashbyhq.com/openai/240d459b-696d-43eb-8497-fab3e56ecd9b/application",
+      "isListed": true,
+      "publishedAt": "2025-04-05T00:03:20.653+00:00",
+      "employmentType": "FullTime",
+      "address": {
+        "postalAddress": {
+          "addressRegion": "California",
+          "addressCountry": "United States",
+          "addressLocality": "San Francisco"
+        }
+      },
+      "department": "Research"
+    }
+  ]
+}

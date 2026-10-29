@@ -41,6 +41,10 @@ def normalize_apply_url(raw_url: str) -> str:
     if ashby_key is not None:
         return ashby_key
 
+    lever_key = _lever_key(host, path)
+    if lever_key is not None:
+        return lever_key
+
     microsoft_key = _microsoft_key(host, query)
     if microsoft_key is not None:
         return microsoft_key
@@ -84,6 +88,17 @@ def _ashby_key(host: str, path: str) -> str | None:
         board = unquote(match.group(1)).casefold()
         job_id = unquote(match.group(2))
         return f"ashby-job-id:{board}:{job_id}"
+    return None
+
+
+def _lever_key(host: str, path: str) -> str | None:
+    if host not in {"jobs.lever.co", "jobs.eu.lever.co", "api.lever.co", "api.eu.lever.co"}:
+        return None
+    match = re.fullmatch(
+        r"(?:/v0/postings)?/([^/]+)/([0-9a-f-]{36})(?:/(?:apply|application))?", path
+    )
+    if match:
+        return f"lever-job-id:{match.group(1).casefold()}:{match.group(2).lower()}"
     return None
 
 

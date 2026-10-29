@@ -9,5 +9,7 @@ def bootstrap_sources(session: Session) -> int:
     existing = set(session.scalars(select(Source.name)).all())
     for definition in SOURCES:
         if definition.name not in existing:
-            session.add(Source(name=definition.name, url=definition.url))
+            session.add(
+                Source(name=definition.name, url=definition.url, priority=definition.priority)
+            )
     return len(set(definition.name for definition in SOURCES) - existing)

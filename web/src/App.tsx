@@ -5,9 +5,10 @@ import { FeedFilters } from "./components/FeedFilters";
 import { FeedHeader } from "./components/FeedHeader";
 import { JobFeed } from "./components/JobFeed";
 import { Pagination } from "./components/Pagination";
-import { defaultFilters, filtersFromSearch, filtersToSearch } from "./filterState";
+import { NO_SOURCES, defaultFilters, filtersFromSearch, filtersToSearch } from "./filterState";
 import { FaqPage } from "./pages/FaqPage";
 import { NotificationSettingsPage } from "./pages/NotificationSettingsPage";
+import { SourcesPage } from "./pages/SourcesPage";
 import { supabase } from "./supabase";
 
 function updateUrl(filters: JobFilters, replace = false): void {
@@ -137,7 +138,7 @@ export function App() {
   }, [path, user]);
 
   useEffect(() => {
-    if (path === "/faq" || path === "/settings/notifications") return;
+    if (path === "/faq" || path === "/settings/notifications" || path === "/sources") return;
     const controller = new AbortController();
     void fetchJobs(filters, controller.signal)
       .then((nextPage) => {
@@ -171,7 +172,7 @@ export function App() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  function navigate(nextPath: "/" | "/faq" | "/settings/notifications"): void {
+  function navigate(nextPath: "/" | "/faq" | "/sources" | "/settings/notifications"): void {
     window.history.pushState({}, "", nextPath === "/" ? `/${filtersToSearch(filters)}` : nextPath);
     setPath(nextPath);
     if (nextPath === "/") {
@@ -189,10 +190,14 @@ export function App() {
   }
 
   function toggleSource(source: SourceName): void {
-    const sources = filters.sources.includes(source)
-      ? filters.sources.filter((value) => value !== source)
-      : [...filters.sources, source];
-    changeFilters({ sources });
+    const available = page?.source_freshness.map((item) => item.name) ?? [];
+    const selected = filters.sources.length === 0 ? available : filters.sources;
+    const next = selected.includes(source)
+      ? selected.filter((value) => value !== source)
+      : [...selected.filter((value) => value !== NO_SOURCES), source];
+    changeFilters({
+      sources: next.length === 0 ? [NO_SOURCES] : next.length === available.length ? [] : next,
+    });
   }
 
   function changePage(nextPage: number): void {
@@ -237,6 +242,9 @@ export function App() {
       <NotificationSettingsPage key={user?.id ?? "signed-out"} user={user} onNavigate={navigate} />
     );
   }
+  if (path === "/sources") {
+    return <SourcesPage key={user?.id ?? "signed-out"} user={user} onNavigate={navigate} />;
+  }
 
   return (
     <main className="flex min-h-screen flex-col bg-white text-slate-950">
@@ -253,7 +261,14 @@ export function App() {
             {authError}
           </p>
         )}
-        <FeedFilters filters={filters} onChange={changeFilters} onToggleSource={toggleSource} />
+        <FeedFilters
+          filters={filters}
+          onChange={changeFilters}
+          onToggleSource={toggleSource}
+          onUncheckAll={() => changeFilters({ sources: [NO_SOURCES] })}
+          onCheckAll={() => changeFilters({ sources: [] })}
+          sources={page?.source_freshness.map((source) => source.name) ?? []}
+        />
         <JobFeed
           page={page}
           loading={loading}

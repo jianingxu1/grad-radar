@@ -2,11 +2,9 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, HttpUrl, field_validator
 
-from app.sources.definitions import SourceName
-
 
 class ParsedJobPosting(BaseModel):
-    source_name: SourceName
+    source_name: str
     company_name: str
     title: str
     apply_url: str

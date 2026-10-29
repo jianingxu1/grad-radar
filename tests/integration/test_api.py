@@ -97,7 +97,11 @@ def test_jobs_api_filters_paginates_and_returns_listing_attributes(
         "listed_at": (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z"),
         "first_seen_at": now.isoformat().replace("+00:00", "Z"),
         "sources": [
-            {"name": "simplify", "url": "https://github.com/SimplifyJobs/New-Grad-Positions"}
+            {
+                "name": "simplify",
+                "url": "https://github.com/SimplifyJobs/New-Grad-Positions",
+                "apply_url": "https://jobs.example.com/1",
+            }
         ],
     }
     assert body["source_freshness"] == [
@@ -189,10 +193,66 @@ def test_jobs_api_filters_discovered_jobs_by_source(
     assert [job["id"] for job in client.get("/v1/jobs?sources=simplify").json()["items"]] == [
         str(simplify.id)
     ]
+    assert client.get("/v1/jobs?sources=simplify").json()["items"][0]["sources"] == [
+        {
+            "name": "simplify",
+            "url": "https://github.com/SimplifyJobs/New-Grad-Positions",
+            "apply_url": "https://jobs.example.com/simplify",
+        }
+    ]
     assert [
         job["id"]
         for job in client.get("/v1/jobs?sources=simplify&sources=speedyapply").json()["items"]
     ] == [str(simplify.id), str(speedyapply.id)]
+
+
+def test_listed_date_sort_puts_unknown_dates_after_dated_jobs(
+    session_factory: sessionmaker[Session],
+) -> None:
+    now = datetime.now(UTC)
+    with session_factory.begin() as session:
+        bootstrap_sources(session)
+        today = persist_posting(
+            session,
+            _posting("https://jobs.example.com/today", "Today", "Boston, MA", now),
+            now - timedelta(hours=1),
+        )
+        yesterday = persist_posting(
+            session,
+            _posting(
+                "https://jobs.example.com/yesterday",
+                "Yesterday",
+                "Boston, MA",
+                now - timedelta(days=1),
+            ),
+            now - timedelta(days=1),
+        )
+        unknown_new = persist_posting(
+            session,
+            _posting("https://jobs.example.com/unknown-new", "Unknown New", "Boston, MA", None),
+            now,
+        )
+        unknown_old = persist_posting(
+            session,
+            _posting("https://jobs.example.com/unknown-old", "Unknown Old", "Boston, MA", None),
+            now - timedelta(days=2),
+        )
+
+    client = TestClient(create_app(session_factory))
+    assert [item["id"] for item in client.get("/v1/jobs?limit=2").json()["items"]] == [
+        str(today.id),
+        str(yesterday.id),
+    ]
+    assert [item["id"] for item in client.get("/v1/jobs").json()["items"]] == [
+        str(today.id),
+        str(yesterday.id),
+        str(unknown_new.id),
+        str(unknown_old.id),
+    ]
+    assert [
+        item["id"]
+        for item in client.get("/v1/jobs?sort_by=listed_at&sort_direction=asc").json()["items"]
+    ] == [str(yesterday.id), str(today.id), str(unknown_new.id), str(unknown_old.id)]
 
 
 def test_jobs_api_listing_age_filter_uses_hours(
@@ -292,12 +352,14 @@ def test_jobs_api_keeps_source_row_order_for_matching_listing_dates(
                     source_id=simplify.id,
                     last_seen_at=first_seen_at,
                     source_position=0,
+                    apply_url="https://jobs.example.com/first",
                 ),
                 JobPostingSource(
                     job_posting_id=second_id,
                     source_id=simplify.id,
                     last_seen_at=first_seen_at,
                     source_position=1,
+                    apply_url="https://jobs.example.com/second",
                 ),
             ]
         )

@@ -42,6 +42,8 @@ def test_ingest_and_deliver_sends_pending_notifications_after_ingestion(
 
     monkeypatch.setattr(cli, "TelegramClient", FakeTelegramClient)
     monkeypatch.setattr(cli, "ingest_all", fake_ingest)
+    monkeypatch.setattr(cli, "ingest_all_boards", lambda factory: [])
+    monkeypatch.setattr(cli, "bootstrap_seed_boards", lambda session: 0)
     monkeypatch.setattr(cli, "deliver_pending", fake_deliver)
 
     assert cli.ingest_and_deliver(session_factory, "github-token", "telegram-token") is summaries

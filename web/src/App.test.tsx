@@ -67,10 +67,18 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Platform Engineer, New Grad")).toBeVisible();
-    const freshness = screen.getByLabelText("Tracker freshness");
-    expect(freshness).toHaveTextContent("Tracker freshness:");
+    const freshness = screen.getByLabelText("Source freshness");
+    expect(within(freshness).getByText("Source freshness")).toHaveClass("uppercase");
+    const githubToggle = within(freshness).getByText("GitHub sources (2)");
+    const githubSection = githubToggle.closest("details");
+    expect(githubSection).not.toHaveAttribute("open");
+    fireEvent.click(githubToggle);
+    expect(githubSection).toHaveAttribute("open");
+    expect(githubToggle.closest("summary")).not.toHaveClass("uppercase");
     expect(freshness).toHaveTextContent(/Simplify: Sep 14, 2026/);
     expect(freshness).toHaveTextContent(/SpeedyApply: not checked yet/);
+    fireEvent.click(githubToggle);
+    expect(githubSection).not.toHaveAttribute("open");
     const applicationLink = screen.getByRole("link", { name: /Open application link for Figma/ });
     expect(applicationLink).toHaveAttribute("target", "_blank");
     expect(applicationLink).toHaveAttribute("rel", "noreferrer");
@@ -80,6 +88,41 @@ describe("App", () => {
         name: "Sign in to set up and receive telegram notifications!",
       }),
     ).toBeVisible();
+  });
+
+  it("links each source to its own application URL", async () => {
+    const provenance = {
+      ...response,
+      items: [
+        {
+          ...response.items[0],
+          sources: [
+            {
+              name: "simplify",
+              url: "https://github.com/SimplifyJobs/New-Grad-Positions",
+              apply_url: "https://tracker.example/apply",
+            },
+            {
+              name: "greenhouse:figma",
+              url: "https://job-boards.greenhouse.io/figma",
+              apply_url: "https://job-boards.greenhouse.io/figma/jobs/123",
+            },
+          ],
+        },
+      ],
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => provenance }));
+    render(<App />);
+
+    const listings = await screen.findByRole("region", { name: /Job listings/ });
+    expect(within(listings).getByRole("link", { name: "Simplify" })).toHaveAttribute(
+      "href",
+      "https://tracker.example/apply",
+    );
+    expect(within(listings).getByRole("link", { name: "Figma (Greenhouse)" })).toHaveAttribute(
+      "href",
+      "https://job-boards.greenhouse.io/figma/jobs/123",
+    );
   });
 
   it("keeps every job column in a horizontally scrollable table", async () => {
@@ -231,21 +274,224 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
   });
 
-  it("only toggles a tracker source when its checkbox is clicked", async () => {
+  it("shows a grouped source checklist with all checked and can clear it", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
     render(<App />);
 
     await screen.findByText("Platform Engineer, New Grad");
-    const sourceFilters = screen.getByRole("group", { name: "Tracker source" });
+    fireEvent.click(screen.getByText("All sources (2)"));
+    const sourceFilters = screen.getByRole("group", { name: "Source" });
+    expect(within(sourceFilters).getByText("All sources (2)").closest("details")).toHaveClass(
+      "max-w-96",
+    );
+    expect(within(sourceFilters).getByText("GitHub sources")).toBeVisible();
+    expect(within(sourceFilters).getByText("Company job boards")).toBeVisible();
     const simplifyCheckbox = within(sourceFilters).getByRole("checkbox", { name: "Simplify" });
-
-    fireEvent.click(within(sourceFilters).getByText("Simplify"));
-    expect(simplifyCheckbox).not.toBeChecked();
-    expect(window.location.search).not.toContain("sources=simplify");
+    const speedyCheckbox = within(sourceFilters).getByRole("checkbox", { name: "SpeedyApply" });
+    expect(simplifyCheckbox).toBeChecked();
+    expect(speedyCheckbox).toBeChecked();
 
     fireEvent.click(simplifyCheckbox);
-    await waitFor(() => expect(window.location.search).toContain("sources=simplify"));
+    await waitFor(() => expect(window.location.search).toContain("sources=speedyapply"));
+    expect(simplifyCheckbox).not.toBeChecked();
+    fireEvent.click(within(sourceFilters).getByRole("button", { name: "Uncheck all" }));
+    expect(within(sourceFilters).getByRole("button", { name: "Uncheck all" })).toHaveClass(
+      "button-secondary",
+    );
+    expect(within(sourceFilters).getByRole("button", { name: "Check all" })).toHaveClass(
+      "button-secondary",
+    );
+    expect(simplifyCheckbox).not.toBeChecked();
+    expect(speedyCheckbox).not.toBeChecked();
+    expect(window.location.search).toContain("sources=__none__");
+    fireEvent.click(within(sourceFilters).getByRole("button", { name: "Check all" }));
     expect(simplifyCheckbox).toBeChecked();
+    expect(speedyCheckbox).toBeChecked();
+    expect(window.location.search).not.toContain("sources=");
+  });
+
+  it("selects a date range from the styled dropdown and closes it", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    render(<App />);
+
+    await screen.findByText("Platform Engineer, New Grad");
+    const dateFilter = screen.getByRole("group", { name: "Listed within" });
+    const dateDetails = dateFilter.querySelector("details");
+    expect(dateDetails).not.toHaveAttribute("open");
+    fireEvent.click(dateFilter.querySelector("summary")!);
+    expect(dateDetails).toHaveAttribute("open");
+    fireEvent.click(within(dateFilter).getByRole("button", { name: "Past 24 hours" }));
+    expect(dateDetails).not.toHaveAttribute("open");
+    expect(dateFilter.querySelector("summary")).toHaveTextContent("Past 24 hours");
+    await waitFor(() => expect(window.location.search).toContain("listed_within_hours=24"));
+
+    fireEvent.click(dateFilter.querySelector("summary")!);
+    fireEvent.click(within(dateFilter).getByRole("button", { name: "Any time" }));
+    expect(window.location.search).not.toContain("listed_within_hours");
+  });
+
+  it("shows company board sources in feed filters", async () => {
+    const boardResponse = {
+      ...response,
+      source_freshness: [
+        ...response.source_freshness,
+        {
+          name: "lever:palantir",
+          url: "https://jobs.lever.co/palantir",
+          last_successful_sync_at: null,
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => boardResponse }),
+    );
+    render(<App />);
+
+    await screen.findByText("All sources (3)");
+    const freshness = screen.getByLabelText("Source freshness");
+    const companyToggle = within(freshness).getByText("Company job boards (1)");
+    const companySection = companyToggle.closest("details");
+    expect(companySection).not.toHaveAttribute("open");
+    fireEvent.click(companyToggle);
+    expect(companySection).toHaveAttribute("open");
+    expect(within(freshness).getByRole("link", { name: "Palantir (Lever)" })).toHaveAttribute(
+      "href",
+      "https://jobs.lever.co/palantir",
+    );
+    fireEvent.click(screen.getByText("All sources (3)"));
+    const sourceFilters = screen.getByRole("group", { name: "Source" });
+    fireEvent.click(within(sourceFilters).getByRole("button", { name: "Uncheck all" }));
+    const checkbox = within(sourceFilters).getByRole("checkbox", { name: "Palantir (Lever)" });
+    fireEvent.click(checkbox);
+    expect(window.location.search).toContain("sources=lever%3Apalantir");
+    expect(checkbox).toBeChecked();
+  });
+
+  it("shows the public Sources page without admin controls", async () => {
+    window.history.replaceState({}, "", "/sources");
+    const sources = [
+      {
+        id: "1",
+        name: "greenhouse:stripe",
+        url: "https://job-boards.greenhouse.io/stripe",
+        platform: "greenhouse",
+        board_name: "stripe",
+        company_name: "Stripe",
+        enabled: true,
+        filter_config: {
+          role_terms: ["software engineer"],
+          level_terms: ["new grad"],
+          exclude_terms: ["intern"],
+        },
+        last_successful_sync_at: null,
+        last_sync_status: "success",
+      },
+    ];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => sources }));
+    render(<App />);
+
+    expect(await screen.findByRole("link", { name: "Stripe" })).toHaveAttribute(
+      "href",
+      "https://job-boards.greenhouse.io/stripe",
+    );
+    expect(screen.queryByRole("button", { name: "Add Source" })).not.toBeInTheDocument();
+  });
+
+  it("lets an admin add a board from the Sources page", async () => {
+    window.history.replaceState({}, "", "/sources");
+    supabaseMock.auth.getSession.mockResolvedValue({
+      data: {
+        session: { user: { id: "admin", email: "admin@example.com" }, access_token: "token" },
+      },
+      error: null,
+    });
+    const created = {
+      id: "1",
+      name: "greenhouse:stripe",
+      url: "https://job-boards.greenhouse.io/stripe",
+      platform: "greenhouse",
+      board_name: "stripe",
+      company_name: "Stripe",
+      enabled: true,
+      filter_config: {
+        role_terms: ["software engineer"],
+        level_terms: ["new grad"],
+        exclude_terms: ["intern"],
+      },
+      last_successful_sync_at: null,
+      last_sync_status: null,
+    };
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/v1/sources") && init?.method === "POST") {
+        return { ok: true, json: async () => created };
+      }
+      if (url.endsWith("/v1/sources")) return { ok: true, json: async () => [] };
+      if (url.endsWith("/v1/me/source-admin")) {
+        return { ok: true, json: async () => ({ is_admin: true }) };
+      }
+      throw new Error(`unexpected URL: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Source" }));
+    fireEvent.change(screen.getByLabelText("Board name"), { target: { value: "stripe" } });
+    fireEvent.change(screen.getByLabelText("Company"), { target: { value: "Stripe" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Add Source" })[1]);
+
+    expect(await screen.findByRole("link", { name: "Stripe" })).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/sources"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("lets an admin edit a board filter", async () => {
+    window.history.replaceState({}, "", "/sources");
+    supabaseMock.auth.getSession.mockResolvedValue({
+      data: {
+        session: { user: { id: "admin", email: "admin@example.com" }, access_token: "token" },
+      },
+      error: null,
+    });
+    const source = {
+      id: "1",
+      name: "lever:palantir",
+      url: "https://jobs.lever.co/palantir",
+      platform: "lever",
+      board_name: "palantir",
+      company_name: "Palantir",
+      enabled: true,
+      filter_config: {
+        role_terms: ["software engineer"],
+        level_terms: ["new grad"],
+        exclude_terms: ["intern"],
+      },
+      last_successful_sync_at: null,
+      last_sync_status: null,
+    };
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/v1/sources/1") && init?.method === "PATCH") {
+        return { ok: true, json: async () => source };
+      }
+      if (url.endsWith("/v1/sources")) return { ok: true, json: async () => [source] };
+      return { ok: true, json: async () => ({ is_admin: true }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit filter" }));
+    fireEvent.change(screen.getByLabelText(/level terms/i), {
+      target: { value: "new grad, early career" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save filter" }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/v1/sources/1"),
+        expect.objectContaining({ method: "PATCH" }),
+      ),
+    );
   });
 
   it("shows a compact paginator and GradRadar footer", async () => {

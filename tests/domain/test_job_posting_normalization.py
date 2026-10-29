@@ -46,7 +46,7 @@ from app.domain.job_posting_normalization import normalize_apply_url, parse_trac
         ),
         (
             "https://jobs.lever.co/weride/5cde0d09-ba2d-408d-947e-4a42028cd4f7/apply?lever-source=Simplify",
-            "https://jobs.lever.co/weride/5cde0d09-ba2d-408d-947e-4a42028cd4f7",
+            "lever-job-id:weride:5cde0d09-ba2d-408d-947e-4a42028cd4f7",
         ),
         (
             "https://jobs.bytedance.com/en/position/7667901772678302005/detail",
@@ -77,6 +77,15 @@ def test_normalize_apply_url_deduplicates_ashby_board_case_variants() -> None:
 
     assert first == second
     assert first == "ashby-job-id:superhuman platform inc:da5e147c-f957-4ba1-9712-1b2dde377cb0"
+
+
+def test_normalize_apply_url_deduplicates_lever_posting_and_apply_links() -> None:
+    identifier = "c34b424e-caf2-455a-b104-ae1096ccca29"
+    posting = normalize_apply_url(f"https://jobs.lever.co/palantir/{identifier}")
+    apply = normalize_apply_url(
+        f"https://jobs.lever.co/palantir/{identifier}/apply?lever-source=Simplify"
+    )
+    assert posting == apply == f"lever-job-id:palantir:{identifier}"
 
 
 @pytest.mark.parametrize("url", ["", "/jobs/1", "ftp://example.com/job", "example.com/job"])

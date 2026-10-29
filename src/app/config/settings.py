@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     supabase_url: str | None = None
     supabase_publishable_key: str | None = None
     supabase_jwt_audience: str = "authenticated"
+    source_admin_user_ids: str = ""
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     frontend_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
@@ -22,6 +23,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.frontend_origins.split(",") if origin.strip()]
+
+    @property
+    def source_admin_ids(self) -> set[str]:
+        return {value.strip() for value in self.source_admin_user_ids.split(",") if value.strip()}
 
     @property
     def supabase_jwks_url(self) -> str | None:

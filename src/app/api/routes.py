@@ -3,11 +3,12 @@ from collections import defaultdict
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from secrets import compare_digest
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from sqlalchemy import case, exists, func, or_, select, text
+from sqlalchemy import exists, func, or_, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.api.schemas import (
@@ -15,14 +16,18 @@ from app.api.schemas import (
     JobPageResponse,
     JobResponse,
     NotificationSettingsResponse,
+    SourceAdminResponse,
+    SourceCreateRequest,
+    SourceDetailResponse,
     SourceFreshnessResponse,
     SourceResponse,
+    SourceUpdateRequest,
     TelegramLinkResponse,
 )
 from app.config.settings import get_settings
 from app.database.models import JobPosting, JobPostingSource, Source, TelegramConnection
 from app.database.session import get_session_factory
-from app.services.auth import get_current_user
+from app.services.auth import get_current_user, get_source_admin
 from app.services.notifications import (
     connection_state,
     consume_start,
@@ -30,7 +35,8 @@ from app.services.notifications import (
     disable_connection,
 )
 from app.services.telegram import TelegramClient
-from app.sources.definitions import SOURCES, SourceName
+from app.sources.ats import Platform, board_url, fetch_board
+from app.sources.board_filter import DEFAULT_FILTER, validate_filter
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +58,91 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
             raise HTTPException(status_code=503, detail="database unavailable") from error
         return HealthResponse(status="ok")
 
+    @router.get("/v1/sources", response_model=list[SourceDetailResponse])
+    def list_sources(
+        session: Annotated[Session, Depends(get_session)],
+    ) -> list[SourceDetailResponse]:
+        return [
+            _source_detail(source)
+            for source in session.scalars(select(Source).order_by(Source.priority, Source.name))
+        ]
+
+    @router.get("/v1/me/source-admin", response_model=SourceAdminResponse)
+    def source_admin_status(
+        user_id: Annotated[str, Depends(get_current_user)],
+    ) -> SourceAdminResponse:
+        return SourceAdminResponse(is_admin=user_id in get_settings().source_admin_ids)
+
+    @router.post("/v1/sources", response_model=SourceDetailResponse, status_code=201)
+    def create_source(
+        request: SourceCreateRequest,
+        _admin: Annotated[str, Depends(get_source_admin)],
+        session: Annotated[Session, Depends(get_session)],
+    ) -> SourceDetailResponse:
+        board_name = request.board_name.strip()
+        source_name = f"{request.platform}:{board_name.casefold()}"
+        if session.scalar(select(Source.id).where(Source.name == source_name)):
+            raise HTTPException(status_code=409, detail="source already exists")
+        try:
+            config = validate_filter(request.filter_config or DEFAULT_FILTER)
+            with httpx.Client(timeout=20) as client:
+                fetch_board(client, request.platform, board_name)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        except httpx.HTTPError as error:
+            raise HTTPException(status_code=502, detail="board could not be verified") from error
+        source = Source(
+            name=source_name,
+            url=board_url(request.platform, board_name),
+            platform=request.platform,
+            board_name=board_name,
+            company_name=request.company_name.strip(),
+            filter_config=config,
+            priority=100,
+        )
+        session.add(source)
+        session.flush()
+        detail = _source_detail(source)
+        session.commit()
+        return detail
+
+    @router.patch("/v1/sources/{source_id}", response_model=SourceDetailResponse)
+    def update_source(
+        source_id: UUID,
+        request: SourceUpdateRequest,
+        _admin: Annotated[str, Depends(get_source_admin)],
+        session: Annotated[Session, Depends(get_session)],
+    ) -> SourceDetailResponse:
+        source = session.get(Source, source_id)
+        if source is None or source.platform == "github":
+            raise HTTPException(status_code=404, detail="board source not found")
+        try:
+            config = (
+                validate_filter(request.filter_config)
+                if request.filter_config is not None
+                else None
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        if request.enabled and not source.enabled:
+            if not source.board_name:
+                raise HTTPException(status_code=422, detail="board source has no board name")
+            try:
+                with httpx.Client(timeout=20) as client:
+                    fetch_board(client, cast(Platform, source.platform), source.board_name)
+            except (ValueError, httpx.HTTPError) as error:
+                raise HTTPException(
+                    status_code=502, detail="board could not be verified"
+                ) from error
+        if request.enabled is not None:
+            source.enabled = request.enabled
+        if config is not None:
+            source.filter_config = config
+        session.flush()
+        detail = _source_detail(source)
+        session.commit()
+        return detail
+
     @router.get("/v1/jobs", response_model=JobPageResponse)
     def list_jobs(
         *,
@@ -61,7 +152,7 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         company: str | None = None,
         posted_within_hours: Annotated[int | None, Query(ge=1)] = None,
         listed_within_hours: Annotated[int | None, Query(ge=1)] = None,
-        sources: Annotated[list[SourceName] | None, Query()] = None,
+        sources: Annotated[list[str] | None, Query()] = None,
         sort_by: Literal["company_name", "listed_at"] = "listed_at",
         sort_direction: Literal["asc", "desc"] = "desc",
         offset: Annotated[int, Query(ge=0)] = 0,
@@ -73,18 +164,20 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
             .join(Source, JobPostingSource.source_id == Source.id)
             .where(
                 JobPostingSource.job_posting_id == JobPosting.id,
+                JobPostingSource.active,
+                Source.enabled,
             )
         )
         if sources:
             source_link = source_link.where(Source.name.in_(sources))
-        source_priority = case(
-            {str(source.name): source.priority for source in SOURCES}, value=Source.name, else_=999
-        )
+        source_priority = Source.priority
         source_position = (
             select(JobPostingSource.source_position)
             .join(Source, JobPostingSource.source_id == Source.id)
             .where(
                 JobPostingSource.job_posting_id == JobPosting.id,
+                JobPostingSource.active,
+                Source.enabled,
             )
             .order_by(source_priority, JobPostingSource.source_position.asc().nulls_last())
             .limit(1)
@@ -95,6 +188,8 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
             .join(JobPostingSource, JobPostingSource.source_id == Source.id)
             .where(
                 JobPostingSource.job_posting_id == JobPosting.id,
+                JobPostingSource.active,
+                Source.enabled,
             )
             .order_by(source_priority, JobPostingSource.source_position.asc().nulls_last())
             .limit(1)
@@ -136,7 +231,13 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
                 if sort_direction == "asc"
                 else source_position.asc().nulls_last()
             )
-            ordering = [date_order, source_order, position_order, JobPosting.id.desc()]
+            ordering = [
+                date_order,
+                JobPosting.first_seen_at.desc(),
+                source_order,
+                position_order,
+                JobPosting.id.desc(),
+            ]
         else:
             company_order = (
                 JobPosting.company_name.asc().nulls_last()
@@ -282,13 +383,14 @@ def _sources_by_job(session: Session, job_ids: list[UUID]) -> dict[UUID, list[So
     if not job_ids:
         return sources_by_job
     rows = session.execute(
-        select(JobPostingSource.job_posting_id, Source.name, Source.url)
+        select(JobPostingSource.job_posting_id, Source.name, Source.url, JobPostingSource.apply_url)
         .join(JobPostingSource, JobPostingSource.source_id == Source.id)
         .where(JobPostingSource.job_posting_id.in_(job_ids))
+        .where(JobPostingSource.active, Source.enabled)
         .order_by(JobPostingSource.job_posting_id, Source.name)
     ).all()
-    for job_id, name, url in rows:
-        sources_by_job[job_id].append(SourceResponse(name=name, url=url))
+    for job_id, name, url, apply_url in rows:
+        sources_by_job[job_id].append(SourceResponse(name=name, url=url, apply_url=apply_url))
     return sources_by_job
 
 
@@ -299,7 +401,7 @@ def _source_freshness(session: Session) -> list[SourceFreshnessResponse]:
             url=source.url,
             last_successful_sync_at=source.last_successful_sync_at,
         )
-        for source in session.scalars(select(Source).order_by(Source.name))
+        for source in session.scalars(select(Source).where(Source.enabled).order_by(Source.name))
     ]
 
 
@@ -313,4 +415,19 @@ def _job_response(job: JobPosting, sources: list[SourceResponse]) -> JobResponse
         listed_at=job.listed_at,
         first_seen_at=job.first_seen_at,
         sources=sources,
+    )
+
+
+def _source_detail(source: Source) -> SourceDetailResponse:
+    return SourceDetailResponse(
+        id=source.id,
+        name=source.name,
+        url=source.url,
+        platform=source.platform,
+        board_name=source.board_name,
+        company_name=source.company_name,
+        enabled=source.enabled,
+        filter_config=source.filter_config,
+        last_successful_sync_at=source.last_successful_sync_at,
+        last_sync_status=source.last_sync_status,
     )

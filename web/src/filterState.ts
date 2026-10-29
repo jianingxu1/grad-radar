@@ -1,6 +1,6 @@
 import type { JobFilters, SourceName } from "./api";
 
-const sourceNames: SourceName[] = ["simplify", "speedyapply"];
+export const NO_SOURCES = "__none__";
 
 export const defaultFilters: JobFilters = {
   q: "",
@@ -27,9 +27,7 @@ export function filtersFromSearch(search: string): JobFilters {
   return {
     q: params.get("q") ?? "",
     listedWithinHours: positiveIntegerString(params.get("listed_within_hours")),
-    sources: params
-      .getAll("sources")
-      .filter((source): source is SourceName => sourceNames.includes(source as SourceName)),
+    sources: params.getAll("sources").filter((source): source is SourceName => Boolean(source)),
     sortBy: sortBy === "company_name" ? sortBy : "listed_at",
     sortDirection: sortDirection === "asc" ? sortDirection : "desc",
     page: positiveInteger(params.get("page"), 1),
