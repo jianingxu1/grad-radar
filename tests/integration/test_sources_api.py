@@ -43,11 +43,20 @@ def test_sources_list_is_public_and_create_requires_admin(
         ).status_code
         == 422
     )
+    assert (
+        client.post(
+            "/v1/sources",
+            json={"platform": "ashby", "board_name": "another", "company_name": "  "},
+        ).status_code
+        == 422
+    )
 
     source_id = created.json()["id"]
     updated = client.patch(f"/v1/sources/{source_id}", json={"enabled": False})
     assert updated.status_code == 200
     assert updated.json()["enabled"] is False
+    assert client.patch(f"/v1/sources/{source_id}", json={"filter_config": {}}).status_code == 422
+    assert client.patch(f"/v1/sources/{source_id}", json={"enabled": True}).status_code == 200
 
 
 def test_source_admin_status_uses_backend_allowlist(

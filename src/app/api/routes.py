@@ -3,7 +3,7 @@ from collections import defaultdict
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from secrets import compare_digest
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 from uuid import UUID
 
 import httpx
@@ -35,7 +35,7 @@ from app.services.notifications import (
     disable_connection,
 )
 from app.services.telegram import TelegramClient
-from app.sources.ats import board_url, fetch_board
+from app.sources.ats import Platform, board_url, fetch_board
 from app.sources.board_filter import DEFAULT_FILTER, validate_filter
 
 logger = logging.getLogger(__name__)
@@ -117,9 +117,23 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         if source is None or source.platform == "github":
             raise HTTPException(status_code=404, detail="board source not found")
         try:
-            config = validate_filter(request.filter_config) if request.filter_config else None
+            config = (
+                validate_filter(request.filter_config)
+                if request.filter_config is not None
+                else None
+            )
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
+        if request.enabled and not source.enabled:
+            if not source.board_name:
+                raise HTTPException(status_code=422, detail="board source has no board name")
+            try:
+                with httpx.Client(timeout=20) as client:
+                    fetch_board(client, cast(Platform, source.platform), source.board_name)
+            except (ValueError, httpx.HTTPError) as error:
+                raise HTTPException(
+                    status_code=502, detail="board could not be verified"
+                ) from error
         if request.enabled is not None:
             source.enabled = request.enabled
         if config is not None:

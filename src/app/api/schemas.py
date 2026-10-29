@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class SourceResponse(BaseModel):
@@ -29,6 +29,13 @@ class SourceCreateRequest(BaseModel):
     board_name: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$")
     company_name: str = Field(min_length=1, max_length=100)
     filter_config: dict[str, list[str]] | None = None
+
+    @field_validator("company_name")
+    @classmethod
+    def require_company_name(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("company name cannot be blank")
+        return value.strip()
 
 
 class SourceUpdateRequest(BaseModel):
