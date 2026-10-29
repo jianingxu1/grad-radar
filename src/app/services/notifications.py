@@ -149,7 +149,9 @@ def enqueue_new_jobs(session: Session, job_ids: list[UUID], cycle_at: datetime) 
     if not job_ids:
         return 0
     jobs = session.execute(
-        select(JobPosting.id, JobPosting.first_seen_at).where(JobPosting.id.in_(job_ids))
+        select(JobPosting.id, JobPosting.first_seen_at, JobPosting.listed_at).where(
+            JobPosting.id.in_(job_ids)
+        )
     ).all()
     connections = session.scalars(
         select(TelegramConnection).where(TelegramConnection.status == "active")
@@ -163,9 +165,11 @@ def enqueue_new_jobs(session: Session, job_ids: list[UUID], cycle_at: datetime) 
             "attempts": 0,
             "next_attempt_at": cycle_at,
         }
-        for job_id, first_seen_at in jobs
+        for job_id, first_seen_at, listed_at in jobs
         for connection in connections
-        if connection.activated_at is not None and connection.activated_at < first_seen_at
+        if connection.activated_at is not None
+        and connection.activated_at <= first_seen_at
+        and (listed_at is None or connection.activated_at <= listed_at)
     ]
     if not rows:
         logger.info("notifications.enqueue.completed new_jobs=%s enqueued=0", len(job_ids))

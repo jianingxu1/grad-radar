@@ -84,7 +84,7 @@ def test_start_link_reports_telegram_user_conflict_before_insert(
         assert consume_start(session, token, 101, 303, now) == "telegram_user_conflict"
 
 
-def test_enqueue_only_notifies_connections_active_before_each_job_is_seen(
+def test_enqueue_requires_posting_dates_to_be_newer_than_connection_activation(
     session_factory: sessionmaker[Session],
 ) -> None:
     now = datetime.now(UTC)
@@ -108,7 +108,34 @@ def test_enqueue_only_notifies_connections_active_before_each_job_is_seen(
             listed_at=now + timedelta(minutes=2),
             first_seen_at=now + timedelta(minutes=2),
         )
-        session.add_all([old_job, new_job])
+        old_listing = JobPosting(
+            application_key="old-listing",
+            company_name="Old listing",
+            title="New Grad",
+            apply_url="https://old-listing",
+            location="USA",
+            listed_at=now,
+            first_seen_at=now + timedelta(minutes=2),
+        )
+        no_listed_date = JobPosting(
+            application_key="no-listed-date",
+            company_name="No listed date",
+            title="New Grad",
+            apply_url="https://no-listed-date",
+            location="USA",
+            listed_at=None,
+            first_seen_at=now + timedelta(minutes=2),
+        )
+        equal_dates = JobPosting(
+            application_key="equal-dates",
+            company_name="Equal dates",
+            title="New Grad",
+            apply_url="https://equal-dates",
+            location="USA",
+            listed_at=now + timedelta(minutes=1),
+            first_seen_at=now + timedelta(minutes=1),
+        )
+        session.add_all([old_job, new_job, old_listing, no_listed_date, equal_dates])
         session.flush()
         session.add(
             TelegramConnection(
@@ -123,8 +150,19 @@ def test_enqueue_only_notifies_connections_active_before_each_job_is_seen(
             )
         )
         session.flush()
-        assert enqueue_new_jobs(session, [old_job.id, new_job.id], now) == 1
+        assert (
+            enqueue_new_jobs(
+                session,
+                [old_job.id, new_job.id, old_listing.id, no_listed_date.id, equal_dates.id],
+                now,
+            )
+            == 3
+        )
 
     with session_factory() as session:
         outbox = session.scalars(select(NotificationOutbox)).all()
-        assert [row.job_posting_id for row in outbox] == [new_job.id]
+        assert {row.job_posting_id for row in outbox} == {
+            new_job.id,
+            no_listed_date.id,
+            equal_dates.id,
+        }
