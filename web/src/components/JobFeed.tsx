@@ -144,25 +144,34 @@ function Freshness({ sources }: { sources: JobPage["source_freshness"] }) {
 
   return (
     <aside className="mb-3 space-y-2 text-xs text-slate-500" aria-label="Source freshness">
-      <p className="font-medium text-slate-600">Source freshness</p>
-      <div>
-        <p className="mb-1 font-semibold uppercase tracking-wide">GitHub sources</p>
-        <FreshnessEntries sources={githubSources} />
-      </div>
-      {companySources.length > 0 && (
-        <details className="group">
-          <summary className="flex w-fit list-none items-center gap-2 font-semibold uppercase tracking-wide text-slate-600 marker:hidden">
-            Company job boards ({companySources.length})
-            <span aria-hidden="true" className="text-sm group-open:rotate-180">
-              ⌄
-            </span>
-          </summary>
-          <div className="mt-1">
-            <FreshnessEntries sources={companySources} />
-          </div>
-        </details>
-      )}
+      <p className="font-semibold uppercase tracking-wide text-slate-600">Source freshness</p>
+      <FreshnessGroup title="GitHub sources" sources={githubSources} />
+      <FreshnessGroup title="Company job boards" sources={companySources} />
     </aside>
+  );
+}
+
+function FreshnessGroup({
+  title,
+  sources,
+}: {
+  title: string;
+  sources: JobPage["source_freshness"];
+}) {
+  if (sources.length === 0) return null;
+
+  return (
+    <details className="group">
+      <summary className="flex w-fit list-none items-center gap-2 font-medium text-slate-600 marker:hidden">
+        {title} ({sources.length})
+        <span aria-hidden="true" className="text-sm group-open:rotate-180">
+          ⌄
+        </span>
+      </summary>
+      <div className="mt-1">
+        <FreshnessEntries sources={sources} />
+      </div>
+    </details>
   );
 }
 

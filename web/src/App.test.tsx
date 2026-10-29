@@ -68,10 +68,17 @@ describe("App", () => {
 
     expect(await screen.findByText("Platform Engineer, New Grad")).toBeVisible();
     const freshness = screen.getByLabelText("Source freshness");
-    expect(freshness).toHaveTextContent("Source freshness");
-    expect(within(freshness).getByText("GitHub sources")).toBeVisible();
+    expect(within(freshness).getByText("Source freshness")).toHaveClass("uppercase");
+    const githubToggle = within(freshness).getByText("GitHub sources (2)");
+    const githubSection = githubToggle.closest("details");
+    expect(githubSection).not.toHaveAttribute("open");
+    fireEvent.click(githubToggle);
+    expect(githubSection).toHaveAttribute("open");
+    expect(githubToggle.closest("summary")).not.toHaveClass("uppercase");
     expect(freshness).toHaveTextContent(/Simplify: Sep 14, 2026/);
     expect(freshness).toHaveTextContent(/SpeedyApply: not checked yet/);
+    fireEvent.click(githubToggle);
+    expect(githubSection).not.toHaveAttribute("open");
     const applicationLink = screen.getByRole("link", { name: /Open application link for Figma/ });
     expect(applicationLink).toHaveAttribute("target", "_blank");
     expect(applicationLink).toHaveAttribute("rel", "noreferrer");
