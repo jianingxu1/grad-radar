@@ -63,6 +63,7 @@ class JobPostingSource(Base):
     last_seen_at: Mapped[datetime]
     source_position: Mapped[int | None]
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    apply_url: Mapped[str] = mapped_column(Text)
 
 
 class TelegramLinkIntent(Base):

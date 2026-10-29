@@ -100,6 +100,7 @@ def persist_postings(
             "last_seen_at": seen_at,
             "source_position": posting.source_position,
             "active": True,
+            "apply_url": str(posting.apply_url),
         }
         for posting in unique_postings.values()
     ]
@@ -111,6 +112,7 @@ def persist_postings(
                 "last_seen_at": link_insert.excluded.last_seen_at,
                 "source_position": link_insert.excluded.source_position,
                 "active": True,
+                "apply_url": link_insert.excluded.apply_url,
             },
         )
     )

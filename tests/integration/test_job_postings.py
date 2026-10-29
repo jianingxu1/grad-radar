@@ -195,3 +195,11 @@ def test_github_and_board_share_one_job_in_either_ingestion_order(
     with session_factory() as session:
         assert session.scalar(select(func.count()).select_from(JobPosting)) == 1
         assert session.scalar(select(func.count()).select_from(JobPostingSource)) == 2
+        assert {
+            source.name: link.apply_url
+            for source, link in session.execute(
+                select(Source, JobPostingSource).join(
+                    JobPostingSource, JobPostingSource.source_id == Source.id
+                )
+            )
+        } == {"simplify": tracker_url, "lever:palantir": board_url}

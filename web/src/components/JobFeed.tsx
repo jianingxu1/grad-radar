@@ -193,7 +193,7 @@ function JobRow({ job }: { job: JobPage["items"][number] }) {
             {index > 0 && ", "}
             <a
               className="text-slate-500 no-underline hover:text-blue-700 hover:underline"
-              href={source.url}
+              href={source.apply_url ?? source.url}
               target="_blank"
               rel="noreferrer"
             >

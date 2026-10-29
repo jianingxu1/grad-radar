@@ -97,7 +97,11 @@ def test_jobs_api_filters_paginates_and_returns_listing_attributes(
         "listed_at": (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z"),
         "first_seen_at": now.isoformat().replace("+00:00", "Z"),
         "sources": [
-            {"name": "simplify", "url": "https://github.com/SimplifyJobs/New-Grad-Positions"}
+            {
+                "name": "simplify",
+                "url": "https://github.com/SimplifyJobs/New-Grad-Positions",
+                "apply_url": "https://jobs.example.com/1",
+            }
         ],
     }
     assert body["source_freshness"] == [
@@ -188,6 +192,13 @@ def test_jobs_api_filters_discovered_jobs_by_source(
 
     assert [job["id"] for job in client.get("/v1/jobs?sources=simplify").json()["items"]] == [
         str(simplify.id)
+    ]
+    assert client.get("/v1/jobs?sources=simplify").json()["items"][0]["sources"] == [
+        {
+            "name": "simplify",
+            "url": "https://github.com/SimplifyJobs/New-Grad-Positions",
+            "apply_url": "https://jobs.example.com/simplify",
+        }
     ]
     assert [
         job["id"]
@@ -292,12 +303,14 @@ def test_jobs_api_keeps_source_row_order_for_matching_listing_dates(
                     source_id=simplify.id,
                     last_seen_at=first_seen_at,
                     source_position=0,
+                    apply_url="https://jobs.example.com/first",
                 ),
                 JobPostingSource(
                     job_posting_id=second_id,
                     source_id=simplify.id,
                     last_seen_at=first_seen_at,
                     source_position=1,
+                    apply_url="https://jobs.example.com/second",
                 ),
             ]
         )

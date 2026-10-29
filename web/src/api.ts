@@ -27,7 +27,7 @@ export type Job = {
   location: string;
   listed_at: string | null;
   first_seen_at: string;
-  sources: Array<{ name: SourceName; url: string }>;
+  sources: Array<{ name: SourceName; url: string; apply_url: string | null }>;
 };
 
 export type SourceFreshness = {

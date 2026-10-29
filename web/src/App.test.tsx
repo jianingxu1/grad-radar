@@ -82,6 +82,41 @@ describe("App", () => {
     ).toBeVisible();
   });
 
+  it("links each source to its own application URL", async () => {
+    const provenance = {
+      ...response,
+      items: [
+        {
+          ...response.items[0],
+          sources: [
+            {
+              name: "simplify",
+              url: "https://github.com/SimplifyJobs/New-Grad-Positions",
+              apply_url: "https://tracker.example/apply",
+            },
+            {
+              name: "greenhouse:figma",
+              url: "https://job-boards.greenhouse.io/figma",
+              apply_url: "https://job-boards.greenhouse.io/figma/jobs/123",
+            },
+          ],
+        },
+      ],
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => provenance }));
+    render(<App />);
+
+    const listings = await screen.findByRole("region", { name: /Job listings/ });
+    expect(within(listings).getByRole("link", { name: "Simplify" })).toHaveAttribute(
+      "href",
+      "https://tracker.example/apply",
+    );
+    expect(within(listings).getByRole("link", { name: "Figma (Greenhouse)" })).toHaveAttribute(
+      "href",
+      "https://job-boards.greenhouse.io/figma/jobs/123",
+    );
+  });
+
   it("keeps every job column in a horizontally scrollable table", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
     render(<App />);

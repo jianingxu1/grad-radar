@@ -377,14 +377,14 @@ def _sources_by_job(session: Session, job_ids: list[UUID]) -> dict[UUID, list[So
     if not job_ids:
         return sources_by_job
     rows = session.execute(
-        select(JobPostingSource.job_posting_id, Source.name, Source.url)
+        select(JobPostingSource.job_posting_id, Source.name, Source.url, JobPostingSource.apply_url)
         .join(JobPostingSource, JobPostingSource.source_id == Source.id)
         .where(JobPostingSource.job_posting_id.in_(job_ids))
         .where(JobPostingSource.active, Source.enabled)
         .order_by(JobPostingSource.job_posting_id, Source.name)
     ).all()
-    for job_id, name, url in rows:
-        sources_by_job[job_id].append(SourceResponse(name=name, url=url))
+    for job_id, name, url, apply_url in rows:
+        sources_by_job[job_id].append(SourceResponse(name=name, url=url, apply_url=apply_url))
     return sources_by_job
 
 

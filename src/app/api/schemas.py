@@ -8,9 +8,12 @@ from pydantic import BaseModel, Field, field_validator
 class SourceResponse(BaseModel):
     name: str
     url: str
+    apply_url: str | None = None
 
 
-class SourceFreshnessResponse(SourceResponse):
+class SourceFreshnessResponse(BaseModel):
+    name: str
+    url: str
     last_successful_sync_at: datetime | None
 
 
