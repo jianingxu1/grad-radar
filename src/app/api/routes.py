@@ -222,16 +222,22 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         total = session.scalar(select(func.count()).select_from(statement.subquery()))
         if sort_by == "listed_at":
             date_order = (
-                func.coalesce(JobPosting.listed_at, JobPosting.first_seen_at).asc()
+                JobPosting.listed_at.asc().nulls_last()
                 if sort_direction == "asc"
-                else func.coalesce(JobPosting.listed_at, JobPosting.first_seen_at).desc()
+                else JobPosting.listed_at.desc().nulls_last()
             )
             position_order = (
                 source_position.desc().nulls_last()
                 if sort_direction == "asc"
                 else source_position.asc().nulls_last()
             )
-            ordering = [date_order, source_order, position_order, JobPosting.id.desc()]
+            ordering = [
+                date_order,
+                JobPosting.first_seen_at.desc(),
+                source_order,
+                position_order,
+                JobPosting.id.desc(),
+            ]
         else:
             company_order = (
                 JobPosting.company_name.asc().nulls_last()
