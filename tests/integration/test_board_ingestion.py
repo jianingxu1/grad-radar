@@ -1,3 +1,4 @@
+from threading import Barrier, Lock
 from typing import Any
 
 import httpx
@@ -24,6 +25,20 @@ def _job(posting_id: str, title: str = "Software Engineer, New Grad") -> dict[st
         "location": {"name": "San Francisco, CA"},
         "absolute_url": f"https://job-boards.greenhouse.io/stripe/jobs/{posting_id}",
     }
+
+
+def _add_board(session: Session, name: str, board_name: str | None = None) -> None:
+    session.add(
+        Source(
+            name=name,
+            url=f"https://job-boards.greenhouse.io/{board_name or name}",
+            platform="greenhouse",
+            board_name=board_name or name,
+            company_name=name,
+            filter_config=DEFAULT_FILTER,
+            priority=100,
+        )
+    )
 
 
 @respx.mock
@@ -116,3 +131,99 @@ def test_filter_edit_hides_previously_accepted_job(session_factory: sessionmaker
         assert _sync(session_factory, client) == "success"
     with session_factory() as session:
         assert session.scalar(select(JobPostingSource.active)) is False
+
+
+def test_board_workers_receive_settings_and_filter_without_database_access(
+    monkeypatch: Any,
+) -> None:
+    source = board_ingestion.BoardSource(
+        name="greenhouse:example",
+        platform="greenhouse",
+        board_name="example",
+        company_name="Example",
+        filter_config=DEFAULT_FILTER,
+    )
+    fetched: list[tuple[str, str]] = []
+    normalized: list[tuple[str, str, str]] = []
+
+    def fetch(client: httpx.Client, platform: str, board_name: str) -> list:
+        fetched.append((platform, board_name))
+        return []
+
+    def normalize(jobs: list, source_name: str, config: dict, company_name: str) -> list:
+        normalized.append((source_name, company_name, config["role_terms"][0]))
+        return []
+
+    monkeypatch.setattr(board_ingestion, "_fetch_with_retries", fetch)
+    monkeypatch.setattr(board_ingestion, "normalize_board_jobs", normalize)
+    with httpx.Client() as client:
+        result = board_ingestion._fetch_and_filter(client, source)
+
+    assert result.error is None
+    assert result.postings == []
+    assert fetched == [("greenhouse", "example")]
+    assert normalized == [("greenhouse:example", "Example", DEFAULT_FILTER["role_terms"][0])]
+
+
+def test_ingest_all_boards_runs_at_most_eight_fetch_workers(
+    session_factory: sessionmaker[Session], monkeypatch: Any
+) -> None:
+    with session_factory.begin() as session:
+        for index in range(10):
+            _add_board(session, f"greenhouse:company-{index}", f"company-{index}")
+
+    barrier = Barrier(board_ingestion.MAX_BOARD_WORKERS)
+    lock = Lock()
+    active = 0
+    maximum = 0
+    calls = 0
+
+    def fetch(client: httpx.Client, platform: str, board_name: str) -> list:
+        nonlocal active, maximum, calls
+        with lock:
+            calls += 1
+            call_number = calls
+            active += 1
+            maximum = max(maximum, active)
+        if call_number <= board_ingestion.MAX_BOARD_WORKERS:
+            barrier.wait(timeout=10)
+        with lock:
+            active -= 1
+        return []
+
+    monkeypatch.setattr(board_ingestion, "_fetch_with_retries", fetch)
+    results = board_ingestion.ingest_all_boards(session_factory)
+
+    assert len(results) == 10
+    assert all(status == "success" for _, status in results)
+    assert maximum == board_ingestion.MAX_BOARD_WORKERS == 8
+
+
+def test_ingest_all_boards_records_failure_and_continues(
+    session_factory: sessionmaker[Session], monkeypatch: Any, caplog: Any
+) -> None:
+    with session_factory.begin() as session:
+        _add_board(session, "greenhouse:bad", "bad")
+        _add_board(session, "greenhouse:good", "good")
+
+    def fetch(client: httpx.Client, platform: str, board_name: str) -> list:
+        if board_name == "bad":
+            raise ValueError("bad board response")
+        return []
+
+    monkeypatch.setattr(board_ingestion, "_fetch_with_retries", fetch)
+    results = dict(board_ingestion.ingest_all_boards(session_factory))
+
+    assert results == {"greenhouse:bad": "failed", "greenhouse:good": "success"}
+    failure_log = next(
+        record
+        for record in caplog.records
+        if record.message.startswith("board.sync.failed source=greenhouse:bad")
+    )
+    assert failure_log.exc_info is not None
+    with session_factory() as session:
+        bad = session.scalar(select(Source).where(Source.name == "greenhouse:bad"))
+        good = session.scalar(select(Source).where(Source.name == "greenhouse:good"))
+        assert bad is not None and bad.last_sync_status == "failed"
+        assert bad.last_sync_error == "bad board response"
+        assert good is not None and good.last_sync_status == "success"
