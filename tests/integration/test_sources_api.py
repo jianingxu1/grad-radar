@@ -89,6 +89,12 @@ def test_sources_list_is_public_and_create_requires_admin(
     assert spaced.status_code == 201
     assert spaced.json()["url"] == "https://jobs.ashbyhq.com/Superhuman%20Platform%20Inc"
     assert spaced.json()["board_name"] == "Superhuman Platform Inc"
+    smartrecruiters = client.post(
+        "/v1/sources",
+        json={"platform": "smartrecruiters", "board_name": "LinkedIn3", "company_name": "LinkedIn"},
+    )
+    assert smartrecruiters.status_code == 201
+    assert smartrecruiters.json()["url"] == "https://careers.smartrecruiters.com/LinkedIn3"
     assert (
         client.post(
             "/v1/sources",
