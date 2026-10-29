@@ -32,6 +32,8 @@ SEED_BOARDS = (
     SeedBoard("greenhouse", "Discord", "Discord"),
     SeedBoard("greenhouse", "doordashusa", "DoorDash"),
     SeedBoard("greenhouse", "imc", "IMC"),
+    SeedBoard("greenhouse", "hudsonrivertrading", "Hudson River Trading"),
+    SeedBoard("greenhouse", "domino-data-lab", "Domino Data Lab"),
     SeedBoard("greenhouse", "optiver", "Optiver"),
     SeedBoard("greenhouse", "lyft", "Lyft"),
     SeedBoard("greenhouse", "samsara", "Samsara"),

@@ -10,9 +10,9 @@ FIXTURES = Path(__file__).parents[1] / "fixtures"
 
 
 def test_seed_boards_are_distinct_and_cover_all_three_platforms() -> None:
-    assert len(SEED_BOARDS) == len({board.name for board in SEED_BOARDS}) == 77
+    assert len(SEED_BOARDS) == len({board.name for board in SEED_BOARDS}) == 79
     assert Counter(board.platform for board in SEED_BOARDS) == {
-        "greenhouse": 33,
+        "greenhouse": 35,
         "ashby": 40,
         "lever": 4,
     }
