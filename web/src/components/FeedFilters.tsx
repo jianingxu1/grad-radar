@@ -1,7 +1,15 @@
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import type { JobFilters, SourceName } from "../api";
 import { NO_SOURCES } from "../filterState";
 import { sourceLabel } from "./format";
+
+const LISTED_WITHIN_OPTIONS = [
+  { value: "", label: "Any time" },
+  { value: "24", label: "Past 24 hours" },
+  { value: "48", label: "Past 48 hours" },
+  { value: "168", label: "Past 7 days" },
+  { value: "720", label: "Past 30 days" },
+];
 
 export function FeedFilters({
   filters,
@@ -18,6 +26,11 @@ export function FeedFilters({
   onCheckAll: () => void;
   sources: SourceName[];
 }) {
+  const dateDetails = useRef<HTMLDetailsElement>(null);
+  const selectedDate = LISTED_WITHIN_OPTIONS.find(
+    (option) => option.value === filters.listedWithinHours,
+  );
+
   return (
     <section aria-label="Feed filters" className="mb-3 border-b border-slate-200 pb-3">
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[0.35fr_0.2fr_1.75fr]">
@@ -28,17 +41,39 @@ export function FeedFilters({
             placeholder="Company or role"
           />
         </Field>
-        <Field label="Listed within">
-          <select
-            value={filters.listedWithinHours}
-            onChange={(event) => onChange({ listedWithinHours: event.target.value })}
-          >
-            <option value="">Any time</option>
-            <option value="24">Past 24 hours</option>
-            <option value="48">Past 48 hours</option>
-            <option value="168">Past 7 days</option>
-            <option value="720">Past 30 days</option>
-          </select>
+        <Field grouped label="Listed within">
+          <details className="group relative w-full max-w-96" ref={dateDetails}>
+            <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded border border-slate-300 px-3 text-sm text-slate-800 marker:hidden">
+              <span>{selectedDate?.label ?? "Any time"}</span>
+              <span aria-hidden="true" className="text-slate-500 group-open:rotate-180">
+                ⌄
+              </span>
+            </summary>
+            <div className="absolute left-0 z-20 mt-1 w-full rounded border border-slate-200 bg-white p-1 shadow-lg">
+              {LISTED_WITHIN_OPTIONS.map((option) => {
+                const selected = filters.listedWithinHours === option.value;
+                return (
+                  <button
+                    aria-pressed={selected}
+                    className={`flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm font-normal ${
+                      selected
+                        ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                        : "bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                    key={option.value}
+                    onClick={() => {
+                      onChange({ listedWithinHours: option.value });
+                      if (dateDetails.current) dateDetails.current.open = false;
+                    }}
+                    type="button"
+                  >
+                    {option.label}
+                    {selected && <span aria-hidden="true">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </details>
         </Field>
         <Field grouped label="Source">
           <details className="group relative w-full max-w-96">

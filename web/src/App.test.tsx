@@ -310,6 +310,26 @@ describe("App", () => {
     expect(window.location.search).not.toContain("sources=");
   });
 
+  it("selects a date range from the styled dropdown and closes it", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => response }));
+    render(<App />);
+
+    await screen.findByText("Platform Engineer, New Grad");
+    const dateFilter = screen.getByRole("group", { name: "Listed within" });
+    const dateDetails = dateFilter.querySelector("details");
+    expect(dateDetails).not.toHaveAttribute("open");
+    fireEvent.click(dateFilter.querySelector("summary")!);
+    expect(dateDetails).toHaveAttribute("open");
+    fireEvent.click(within(dateFilter).getByRole("button", { name: "Past 24 hours" }));
+    expect(dateDetails).not.toHaveAttribute("open");
+    expect(dateFilter.querySelector("summary")).toHaveTextContent("Past 24 hours");
+    await waitFor(() => expect(window.location.search).toContain("listed_within_hours=24"));
+
+    fireEvent.click(dateFilter.querySelector("summary")!);
+    fireEvent.click(within(dateFilter).getByRole("button", { name: "Any time" }));
+    expect(window.location.search).not.toContain("listed_within_hours");
+  });
+
   it("shows company board sources in feed filters", async () => {
     const boardResponse = {
       ...response,
