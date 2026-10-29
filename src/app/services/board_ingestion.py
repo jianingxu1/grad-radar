@@ -45,11 +45,12 @@ def ingest_board(
         board_name = source.board_name
         company_name = source.company_name
         config = source.filter_config or DEFAULT_FILTER
+        platform_config = source.platform_config
     if not board_name or not company_name:
         raise ValueError("board source is missing its name or company")
     try:
         logger.info("Fetching jobs from %s board %s", platform, board_name)
-        jobs = _fetch_with_retries(client, platform, board_name)
+        jobs = _fetch_with_retries(client, platform, board_name, platform_config)
         logger.info("Filtering %s fetched jobs from source %s", len(jobs), source_name)
         postings = normalize_board_jobs(jobs, source_name, validate_filter(config), company_name)
         checked_at = datetime.now(UTC)
@@ -103,5 +104,10 @@ def ingest_board(
     stop=stop_after_attempt(3),
     reraise=True,
 )
-def _fetch_with_retries(client: httpx.Client, platform: str, board_name: str) -> list[BoardJob]:
-    return fetch_board(client, cast(Platform, platform), board_name)
+def _fetch_with_retries(
+    client: httpx.Client,
+    platform: str,
+    board_name: str,
+    platform_config: dict[str, str] | None = None,
+) -> list[BoardJob]:
+    return fetch_board(client, cast(Platform, platform), board_name, platform_config)

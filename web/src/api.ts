@@ -10,7 +10,8 @@ export type SourceDetail = {
   id: string;
   name: string;
   url: string;
-  platform: "github" | "greenhouse" | "ashby" | "lever";
+  platform: "github" | "greenhouse" | "ashby" | "lever" | "oracle";
+  platform_config: Record<string, string> | null;
   board_name: string | null;
   company_name: string | null;
   enabled: boolean;
@@ -121,9 +122,10 @@ export async function fetchSourceAdminStatus(): Promise<boolean> {
 }
 
 export async function createSource(input: {
-  platform: "greenhouse" | "ashby" | "lever";
+  platform: "greenhouse" | "ashby" | "lever" | "oracle";
   board_name: string;
   company_name: string;
+  platform_config?: Record<string, string>;
 }): Promise<SourceDetail> {
   const response = await authenticatedFetch("/v1/sources", {
     method: "POST",

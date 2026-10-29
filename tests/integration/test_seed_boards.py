@@ -14,7 +14,7 @@ def test_seed_boards_are_idempotent_and_do_not_reenable_disabled_sources(
     session_factory: sessionmaker[Session],
 ) -> None:
     with session_factory.begin() as session:
-        assert bootstrap_seed_boards(session) == 77
+        assert bootstrap_seed_boards(session) == 78
     with session_factory.begin() as session:
         source = session.scalar(select(Source).where(Source.name == "greenhouse:stripe"))
         assert source is not None
@@ -24,7 +24,13 @@ def test_seed_boards_are_idempotent_and_do_not_reenable_disabled_sources(
     with session_factory() as session:
         source = session.get(Source, source_id)
         assert source is not None and source.enabled is False
-        assert session.scalar(select(func.count()).select_from(Source)) == 77
+        assert session.scalar(select(func.count()).select_from(Source)) == 78
+        uber = session.scalar(select(Source).where(Source.name == "oracle:uber"))
+        assert uber is not None
+        assert uber.platform_config == {
+            "host": "iaziqy.fa.ocs.oraclecloud.com",
+            "site_number": "CX_1",
+        }
         assert all(
             source.filter_config["level_terms"] for source in session.scalars(select(Source))
         )

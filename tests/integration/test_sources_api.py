@@ -30,12 +30,48 @@ def test_sources_list_is_public_and_create_requires_admin(
     assert client.post("/v1/sources", json=payload).status_code == 403
 
     app.dependency_overrides[get_source_admin] = lambda: "admin"
-    monkeypatch.setattr(routes, "fetch_board", lambda client, platform, board: [])
+    monkeypatch.setattr(routes, "fetch_board", lambda *args: [])
     created = client.post("/v1/sources", json=payload)
     assert created.status_code == 201
     assert created.json()["name"] == "ashby:openai"
     assert created.json()["filter_config"]["level_terms"]
     assert client.post("/v1/sources", json=payload).status_code == 409
+    oracle_payload = {
+        "platform": "oracle",
+        "board_name": "uber",
+        "company_name": "Uber",
+        "platform_config": {"host": "iaziqy.fa.ocs.oraclecloud.com", "site_number": "CX_1"},
+    }
+    oracle = client.post("/v1/sources", json=oracle_payload)
+    assert oracle.status_code == 201
+    assert oracle.json()["name"] == "oracle:uber"
+    assert oracle.json()["platform_config"] == oracle_payload["platform_config"]
+    assert client.post("/v1/sources", json=oracle_payload).status_code == 409
+    invalid_configs = [
+        None,
+        {"host": "example.com", "site_number": "CX_1"},
+        {"host": "example.fa.oraclecloud.com.evil", "site_number": "CX_1"},
+        {"host": "http://example.fa.oraclecloud.com", "site_number": "CX_1"},
+        {"host": "example.fa.oraclecloud.com", "site_number": "CX_bad"},
+    ]
+    for index, invalid_config in enumerate(invalid_configs):
+        invalid = {
+            **oracle_payload,
+            "board_name": f"invalid-{index}",
+            "platform_config": invalid_config,
+        }
+        assert client.post("/v1/sources", json=invalid).status_code == 422
+    assert (
+        client.post(
+            "/v1/sources",
+            json={
+                **payload,
+                "board_name": "wrong-config",
+                "platform_config": oracle_payload["platform_config"],
+            },
+        ).status_code
+        == 422
+    )
     spaced = client.post(
         "/v1/sources",
         json={

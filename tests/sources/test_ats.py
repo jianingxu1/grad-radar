@@ -4,7 +4,14 @@ import httpx
 import pytest
 import respx
 
-from app.sources.ats import board_url, fetch_board, parse_ashby, parse_greenhouse, parse_lever
+from app.sources.ats import (
+    board_url,
+    fetch_board,
+    parse_ashby,
+    parse_greenhouse,
+    parse_lever,
+    parse_oracle,
+)
 
 
 def test_greenhouse_parse_skips_prospect_and_does_not_use_update_as_listing_date() -> None:
@@ -81,6 +88,99 @@ def test_lever_parse_and_empty_board() -> None:
     )
     assert jobs[0].posting_id == "abc"
     assert jobs[0].listed_at is None
+
+
+def test_oracle_parser_maps_optional_fields_and_rejects_bad_payloads() -> None:
+    config = {"host": "example.fa.oraclecloud.com", "site_number": "CX_1"}
+    jobs, total = parse_oracle(
+        {
+            "TotalJobsCount": 1,
+            "requisitionList": [
+                {
+                    "Id": 123,
+                    "Title": "Software Engineer New Grad",
+                    "PrimaryLocation": "Seattle, WA",
+                    "PrimaryLocationCountry": "United States",
+                    "PostedDate": "2026-10-28T00:00:00Z",
+                    "ShortDescriptionStr": "Build software",
+                }
+            ],
+        },
+        config,
+    )
+    assert total == 1
+    assert jobs[0].posting_id == "123"
+    assert jobs[0].apply_url.endswith("/sites/CX_1/job/123")
+    assert jobs[0].listed_at == datetime(2026, 10, 28, tzinfo=UTC)
+    assert jobs[0].country == "United States"
+    date_only, _ = parse_oracle(
+        {
+            "TotalJobsCount": 1,
+            "requisitionList": [{"Id": 7, "Title": "Engineer", "PostedDate": "2026-10-28"}],
+        },
+        config,
+    )
+    assert date_only[0].listed_at == datetime(2026, 10, 28, tzinfo=UTC)
+    optional, _ = parse_oracle(
+        {
+            "TotalJobsCount": 1,
+            "requisitionList": [
+                {
+                    "Id": 2,
+                    "Title": "Engineer",
+                }
+            ],
+        },
+        config,
+    )
+    assert optional[0].description == "" and optional[0].listed_at is None
+    for payload in (
+        {},
+        {"TotalJobsCount": -1, "requisitionList": []},
+        {"TotalJobsCount": 1, "requisitionList": [None]},
+        {
+            "TotalJobsCount": 1,
+            "requisitionList": [{"Id": 1, "Title": "Role", "PostingStartDate": "bad"}],
+        },
+    ):
+        with pytest.raises(ValueError):
+            parse_oracle(payload, config)
+
+
+@respx.mock
+def test_oracle_fetches_all_pages_with_finder_and_configured_site() -> None:
+    host = "example.fa.oraclecloud.com"
+    url = f"https://{host}/hcmRestApi/resources/11.13.18.05/recruitingCEJobRequisitions"
+    calls = []
+
+    def page(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.params)
+        finder = request.url.params["finder"]
+        offset = int(finder.rsplit("offset=", 1)[1])
+        rows = [
+            {"Id": index + 1, "Title": "Role"} for index in range(offset, min(offset + 100, 101))
+        ]
+        return httpx.Response(200, json={"TotalJobsCount": 101, "requisitionList": rows})
+
+    respx.get(url).mock(side_effect=page)
+    with httpx.Client() as client:
+        jobs = fetch_board(client, "oracle", "uber", {"host": host, "site_number": "CX_1"})
+    assert len(jobs) == 101
+    assert len(calls) == 2
+    assert calls[0]["finder"] == "findReqs;siteNumber=CX_1,limit=100,offset=0"
+    assert calls[0]["onlyData"] == "true"
+    assert calls[1]["finder"].endswith("offset=100")
+
+
+@respx.mock
+def test_oracle_http_error_and_invalid_config_fail() -> None:
+    host = "example.fa.oraclecloud.com"
+    url = f"https://{host}/hcmRestApi/resources/11.13.18.05/recruitingCEJobRequisitions"
+    respx.get(url).mock(return_value=httpx.Response(503))
+    with httpx.Client() as client, pytest.raises(httpx.HTTPStatusError):
+        fetch_board(client, "oracle", "uber", {"host": host, "site_number": "CX"})
+    with httpx.Client() as client, pytest.raises(ValueError):
+        fetch_board(client, "oracle", "uber", {"host": "evil.com", "site_number": "CX_1"})
 
 
 @respx.mock

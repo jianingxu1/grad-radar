@@ -86,18 +86,19 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         try:
             config = validate_filter(request.filter_config or DEFAULT_FILTER)
             with httpx.Client(timeout=20) as client:
-                fetch_board(client, request.platform, board_name)
+                fetch_board(client, request.platform, board_name, request.platform_config)
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
         except httpx.HTTPError as error:
             raise HTTPException(status_code=502, detail="board could not be verified") from error
         source = Source(
             name=source_name,
-            url=board_url(request.platform, board_name),
+            url=board_url(request.platform, board_name, request.platform_config),
             platform=request.platform,
             board_name=board_name,
             company_name=request.company_name.strip(),
             filter_config=config,
+            platform_config=request.platform_config,
             priority=100,
         )
         session.add(source)
@@ -129,7 +130,12 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
                 raise HTTPException(status_code=422, detail="board source has no board name")
             try:
                 with httpx.Client(timeout=20) as client:
-                    fetch_board(client, cast(Platform, source.platform), source.board_name)
+                    fetch_board(
+                        client,
+                        cast(Platform, source.platform),
+                        source.board_name,
+                        source.platform_config,
+                    )
             except (ValueError, httpx.HTTPError) as error:
                 raise HTTPException(
                     status_code=502, detail="board could not be verified"
@@ -428,6 +434,7 @@ def _source_detail(source: Source) -> SourceDetailResponse:
         company_name=source.company_name,
         enabled=source.enabled,
         filter_config=source.filter_config,
+        platform_config=source.platform_config,
         last_successful_sync_at=source.last_successful_sync_at,
         last_sync_status=source.last_sync_status,
     )
