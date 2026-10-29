@@ -14,7 +14,7 @@ def test_seed_boards_are_idempotent_and_do_not_reenable_disabled_sources(
     session_factory: sessionmaker[Session],
 ) -> None:
     with session_factory.begin() as session:
-        assert bootstrap_seed_boards(session) == 83
+        assert bootstrap_seed_boards(session) == 95
     with session_factory.begin() as session:
         source = session.scalar(select(Source).where(Source.name == "greenhouse:stripe"))
         assert source is not None
@@ -24,7 +24,7 @@ def test_seed_boards_are_idempotent_and_do_not_reenable_disabled_sources(
     with session_factory() as session:
         source = session.get(Source, source_id)
         assert source is not None and source.enabled is False
-        assert session.scalar(select(func.count()).select_from(Source)) == 83
+        assert session.scalar(select(func.count()).select_from(Source)) == 95
         uber = session.scalar(select(Source).where(Source.name == "oracle:uber"))
         assert uber is not None
         assert uber.platform_config == {
@@ -68,3 +68,39 @@ def test_seed_boards_upgrade_older_default_filter(session_factory: sessionmaker[
         stripe = session.scalar(select(Source).where(Source.name == "greenhouse:stripe"))
         assert stripe is not None
         assert stripe.filter_config == DEFAULT_FILTER
+
+
+def test_seed_boards_migrate_known_invalid_greenhouse_board_names(
+    session_factory: sessionmaker[Session],
+) -> None:
+    old_sources = {
+        "greenhouse:domino-data-lab": ("domino-data-lab", "Domino Data Lab"),
+        "greenhouse:sambanova": ("sambanova", "SambaNova"),
+    }
+    with session_factory.begin() as session:
+        for name, (board_name, company_name) in old_sources.items():
+            session.add(
+                Source(
+                    name=name,
+                    url=f"https://job-boards.greenhouse.io/{board_name}",
+                    platform="greenhouse",
+                    board_name=board_name,
+                    company_name=company_name,
+                    filter_config=DEFAULT_FILTER,
+                    priority=100,
+                )
+            )
+    with session_factory.begin() as session:
+        bootstrap_seed_boards(session)
+    with session_factory() as session:
+        for company_name, board_name in (
+            ("Domino Data Lab", "dominodatalab"),
+            ("SambaNova", "sambanovasystems"),
+        ):
+            sources = session.scalars(
+                select(Source).where(Source.company_name == company_name)
+            ).all()
+            assert len(sources) == 1
+            assert sources[0].name == f"greenhouse:{board_name}"
+            assert sources[0].board_name == board_name
+            assert sources[0].url == f"https://job-boards.greenhouse.io/{board_name}"

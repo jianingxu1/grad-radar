@@ -31,3 +31,34 @@ Checked public endpoints:
 Other candidates checked but not seeded: Greenhouse Duolingo, Cloudflare, and
 Reddit had no default-filter matches; Ashby Linear and Mercury had no matches;
 Lever Anduril, Roblox, Plaid, and Affirm returned 404 for the tested board names.
+
+## Additional boards identified — October 29, 2026
+
+Following a review of a target-company list, these board references were added
+to the seed config. They use supported adapters, but live API verification was
+not available in the environment during this update. Counts and filter matches
+are therefore not reported here; the first successful sync should confirm each
+board before relying on it.
+
+| Platform | Company | Board name | Board |
+| --- | --- | --- | --- |
+| Greenhouse | Cloudflare | `cloudflare` | https://job-boards.greenhouse.io/cloudflare |
+| Greenhouse | Reddit | `reddit` | https://job-boards.greenhouse.io/reddit |
+| Greenhouse | Waymo | `waymo` | https://job-boards.greenhouse.io/waymo |
+| Greenhouse | CoreWeave | `coreweave` | https://job-boards.greenhouse.io/coreweave |
+| Greenhouse | Brex | `brex` | https://job-boards.greenhouse.io/brex |
+| Greenhouse | Dropbox | `dropbox` | https://job-boards.greenhouse.io/dropbox |
+| Greenhouse | Twilio | `twilio` | https://job-boards.greenhouse.io/twilio |
+| Greenhouse | SpaceX | `spacex` | https://job-boards.greenhouse.io/spacex |
+| Greenhouse | Fivetran | `fivetran` | https://job-boards.greenhouse.io/fivetran |
+| Greenhouse | Vercel | `vercel` | https://job-boards.greenhouse.io/vercel |
+| Ashby | Mercury | `mercury` | https://jobs.ashbyhq.com/mercury |
+| Lever | Mistral AI | `mistral-ai` | https://jobs.lever.co/mistral-ai |
+
+## Failed source URL corrections — October 29, 2026
+
+The Supabase `sources` table reported 404 sync failures for several existing
+sources. Domino Data Lab's Greenhouse board is `dominodatalab`, and SambaNova's
+is `sambanovasystems`; both corrected API URLs returned HTTP 200 with job
+listings. Their seed entries and source rows were updated. The remaining failed
+sources need further investigation before changing their platform or board.

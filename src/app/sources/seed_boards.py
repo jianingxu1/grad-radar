@@ -16,6 +16,7 @@ class SeedBoard:
     board_name: str
     company_name: str
     platform_config: dict[str, str] | None = None
+    previous_names: tuple[str, ...] = ()
 
     @property
     def name(self) -> str:
@@ -37,11 +38,26 @@ SEED_BOARDS = (
     SeedBoard("greenhouse", "doordashusa", "DoorDash"),
     SeedBoard("greenhouse", "imc", "IMC"),
     SeedBoard("greenhouse", "hudsonrivertrading", "Hudson River Trading"),
-    SeedBoard("greenhouse", "domino-data-lab", "Domino Data Lab"),
+    SeedBoard(
+        "greenhouse",
+        "dominodatalab",
+        "Domino Data Lab",
+        previous_names=("greenhouse:domino-data-lab",),
+    ),
     SeedBoard("greenhouse", "optiver", "Optiver"),
     SeedBoard("greenhouse", "lyft", "Lyft"),
     SeedBoard("greenhouse", "samsara", "Samsara"),
     SeedBoard("greenhouse", "roblox", "Roblox"),
+    SeedBoard("greenhouse", "cloudflare", "Cloudflare"),
+    SeedBoard("greenhouse", "reddit", "Reddit"),
+    SeedBoard("greenhouse", "waymo", "Waymo"),
+    SeedBoard("greenhouse", "coreweave", "CoreWeave"),
+    SeedBoard("greenhouse", "brex", "Brex"),
+    SeedBoard("greenhouse", "dropbox", "Dropbox"),
+    SeedBoard("greenhouse", "twilio", "Twilio"),
+    SeedBoard("greenhouse", "spacex", "SpaceX"),
+    SeedBoard("greenhouse", "fivetran", "Fivetran"),
+    SeedBoard("greenhouse", "vercel", "Vercel"),
     SeedBoard("greenhouse", "akunacapital", "Akuna Capital"),
     SeedBoard("greenhouse", "twitch", "Twitch"),
     SeedBoard("greenhouse", "kikoff", "Kikoff"),
@@ -59,11 +75,17 @@ SEED_BOARDS = (
     SeedBoard("greenhouse", "c3ai", "C3.ai"),
     SeedBoard("greenhouse", "ixl", "IXL"),
     SeedBoard("greenhouse", "otterai", "Otter.ai"),
-    SeedBoard("greenhouse", "sambanova", "SambaNova"),
+    SeedBoard(
+        "greenhouse",
+        "sambanovasystems",
+        "SambaNova",
+        previous_names=("greenhouse:sambanova",),
+    ),
     SeedBoard("greenhouse", "pinterest", "Pinterest"),
     SeedBoard("ashby", "openai", "OpenAI"),
     SeedBoard("ashby", "notion", "Notion"),
     SeedBoard("ashby", "ramp", "Ramp"),
+    SeedBoard("ashby", "mercury", "Mercury"),
     SeedBoard("ashby", "linear", "Linear"),
     SeedBoard("ashby", "replit", "Replit"),
     SeedBoard("ashby", "perplexity", "Perplexity"),
@@ -104,6 +126,7 @@ SEED_BOARDS = (
     SeedBoard("lever", "palantir", "Palantir"),
     SeedBoard("lever", "shieldai", "Shield AI"),
     SeedBoard("lever", "spotify", "Spotify"),
+    SeedBoard("lever", "mistral-ai", "Mistral AI"),
     SeedBoard("lever", "weride", "WeRide"),
     SeedBoard("smartrecruiters", "LinkedIn3", "LinkedIn"),
     SeedBoard("smartrecruiters", "ServiceNow", "ServiceNow"),
@@ -125,8 +148,18 @@ def bootstrap_seed_boards(session: Session) -> int:
     existing = {source.name: source for source in session.scalars(select(Source)).all()}
     created = 0
     for board in SEED_BOARDS:
-        if board.name in existing:
-            source = existing[board.name]
+        source = existing.get(board.name)
+        if source is None:
+            previous_name = next((name for name in board.previous_names if name in existing), None)
+            if previous_name is not None:
+                source = existing.pop(previous_name)
+                source.name = board.name
+                source.board_name = board.board_name
+                source.url = board_url(board.platform, board.board_name, board.platform_config)
+                source.platform = board.platform
+                source.platform_config = board.platform_config
+                existing[board.name] = source
+        if source is not None:
             if source.filter_config in LEGACY_DEFAULT_FILTERS:
                 source.filter_config = DEFAULT_FILTER
             continue
