@@ -72,6 +72,8 @@ def test_ingestion_persists_changed_revision_and_skips_unchanged_revision(
         assert source.last_processed_revision_sha == sha
         assert source.last_successful_sync_at is not None
         assert source.last_successful_sync_at > previous_sync_at
+        assert source.last_sync_status == "success"
+        assert source.last_sync_error is None
         assert len(session.scalars(select(JobPosting)).all()) == 3
 
 
@@ -156,6 +158,8 @@ def test_ingestion_does_not_advance_source_revision_when_parsing_fails(
         assert source is not None
         assert source.last_processed_revision_sha is None
         assert source.last_successful_sync_at is None
+        assert source.last_sync_status == "failed"
+        assert source.last_sync_error
 
 
 def test_enqueue_failure_rolls_back_jobs_and_sha_for_retry(

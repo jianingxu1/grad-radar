@@ -77,4 +77,5 @@ def test_enqueue_failure_occurs_before_source_transaction_commits(
             )
 
     assert summary.status == "failed"
-    assert events == ["begin", "commit", "begin", "enqueue", "rollback"]
+    assert events == ["begin", "commit", "begin", "enqueue", "rollback", "begin", "commit"]
+    assert source.last_processed_revision_sha is None

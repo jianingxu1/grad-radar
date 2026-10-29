@@ -146,6 +146,8 @@ def ingest_source(
             notifications_enqueued = enqueue_new_jobs(session, new_job_ids, cycle_at)
             source.last_processed_revision_sha = sha
             source.last_successful_sync_at = checked_at
+            source.last_sync_status = "success"
+            source.last_sync_error = None
         duration_ms = _duration_ms(started_at)
         summary = IngestionSummary(
             definition.name,
@@ -185,6 +187,14 @@ def ingest_source(
             duration_ms,
             error,
         )
+        try:
+            with session_factory.begin() as session:
+                source = session.scalar(select(Source).where(Source.name == definition.name))
+                if source is not None:
+                    source.last_sync_status = "failed"
+                    source.last_sync_error = str(error)[:1000]
+        except Exception:
+            logger.exception("ingestion.source.status_update_failed source=%s", definition.name)
         return IngestionSummary(definition.name, "failed", sha, str(error), duration_ms=duration_ms)
 
 
@@ -213,6 +223,8 @@ def _mark_source_successfully_synced(
     with session_factory.begin() as session:
         source = session.query(Source).filter_by(name=definition.name).one()
         source.last_successful_sync_at = checked_at
+        source.last_sync_status = "success"
+        source.last_sync_error = None
 
 
 def _duration_ms(started_at: float) -> int:
