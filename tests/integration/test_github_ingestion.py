@@ -178,10 +178,10 @@ def test_enqueue_failure_rolls_back_jobs_and_sha_for_retry(
                 telegram_user_id=101,
                 telegram_chat_id=202,
                 status="active",
-                created_at=datetime(2026, 1, 1, tzinfo=UTC),
-                activated_at=datetime(2026, 1, 1, tzinfo=UTC),
+                created_at=datetime(2025, 12, 1, tzinfo=UTC),
+                activated_at=datetime(2025, 12, 1, tzinfo=UTC),
                 disabled_at=None,
-                updated_at=datetime(2026, 1, 1, tzinfo=UTC),
+                updated_at=datetime(2025, 12, 1, tzinfo=UTC),
             )
         )
 
