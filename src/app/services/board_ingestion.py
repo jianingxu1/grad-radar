@@ -18,7 +18,12 @@ from app.models.parsed_job_posting import ParsedJobPosting
 from app.repositories.job_postings import persist_postings_with_new_ids
 from app.services.notifications import enqueue_new_jobs
 from app.sources.ats import BoardJob, Platform, fetch_board
-from app.sources.board_filter import DEFAULT_FILTER, normalize_board_jobs, validate_filter
+from app.sources.board_filter import (
+    DEFAULT_FILTER,
+    normalize_board_jobs,
+    title_might_match,
+    validate_filter,
+)
 
 logger = logging.getLogger(__name__)
 MAX_BOARD_WORKERS = 8
@@ -101,15 +106,21 @@ def _fetch_and_filter(client: httpx.Client, source: BoardSource) -> BoardFetchRe
     try:
         if not source.board_name or not source.company_name:
             raise ValueError("board source is missing its name or company")
+        filter_config = validate_filter(source.filter_config or DEFAULT_FILTER)
         logger.info("Fetching jobs from %s board %s", source.platform, source.board_name)
-        jobs = _fetch_with_retries(
-            client, source.platform, source.board_name, source.platform_config
-        )
+        if source.platform == "smartrecruiters":
+            jobs = _fetch_with_retries(
+                client, source.platform, source.board_name, source.platform_config, filter_config
+            )
+        else:
+            jobs = _fetch_with_retries(
+                client, source.platform, source.board_name, source.platform_config
+            )
         logger.info("Filtering %s fetched jobs from source %s", len(jobs), source.name)
         postings = normalize_board_jobs(
             jobs,
             source.name,
-            validate_filter(source.filter_config or DEFAULT_FILTER),
+            filter_config,
             source.company_name,
         )
         return BoardFetchResult(source, started_at, len(jobs), postings)
@@ -184,5 +195,13 @@ def _fetch_with_retries(
     platform: str,
     board_name: str,
     platform_config: dict[str, str] | None = None,
+    filter_config: dict[str, list[str]] | None = None,
 ) -> list[BoardJob]:
-    return fetch_board(client, cast(Platform, platform), board_name, platform_config)
+    listing_title_filter = (
+        (lambda title: title_might_match(title, filter_config))
+        if filter_config is not None
+        else None
+    )
+    return fetch_board(
+        client, cast(Platform, platform), board_name, platform_config, listing_title_filter
+    )

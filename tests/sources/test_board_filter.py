@@ -96,6 +96,12 @@ def test_default_filter_accepts_generic_title_with_graduation_cohort() -> None:
     )
 
 
+def test_final_filter_rejects_missing_title_despite_graduation_phrase() -> None:
+    assert not matches_board_filter(
+        job(title="", description="Graduation expected between 2026 and 2027."), DEFAULT_FILTER
+    )
+
+
 @pytest.mark.parametrize(
     "changes",
     [

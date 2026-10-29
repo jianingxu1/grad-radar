@@ -17,6 +17,59 @@ def _sync(session_factory: sessionmaker[Session], client: httpx.Client) -> str:
     return board_ingestion.ingest_board(session_factory, client, "greenhouse:stripe")
 
 
+@respx.mock
+def test_smartrecruiters_fetches_details_only_for_possible_title_matches() -> None:
+    base = "https://api.smartrecruiters.com/v1/companies/LinkedIn3/postings"
+    listing = respx.get(base).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "totalFound": 5,
+                "content": [
+                    {"id": "1", "name": "Software Engineer, New Grad"},
+                    {"id": "3", "name": "Senior Software Engineer, New Grad"},
+                    {"id": "2", "name": "Software Developer"},
+                    {"id": "4", "name": "Accountant"},
+                    {"id": "5"},
+                ],
+            },
+        )
+    )
+    for posting_id, title, description in (
+        ("1", "Software Engineer, New Grad", ""),
+        ("2", "Software Developer", "Graduation expected between 2026 and 2027."),
+        ("5", "Accountant", ""),
+    ):
+        respx.get(f"{base}/{posting_id}").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "id": posting_id,
+                    "name": title,
+                    "location": {"city": "San Francisco", "region": "CA", "country": "us"},
+                    "typeOfEmployment": {"label": "Full-time"},
+                    "applyUrl": f"https://jobs.smartrecruiters.com/LinkedIn3/{posting_id}",
+                    "jobAd": {"sections": {"jobDescription": {"text": description}}},
+                },
+            )
+        )
+    source = board_ingestion.BoardSource(
+        "smartrecruiters:linkedin3", "smartrecruiters", "LinkedIn3", "LinkedIn", DEFAULT_FILTER
+    )
+    with httpx.Client() as client:
+        result = board_ingestion._fetch_and_filter(client, source)
+
+    assert result.error is None
+    assert result.fetched_count == 3
+    assert [posting.title for posting in result.postings or []] == [
+        "Software Engineer, New Grad",
+        "Software Developer",
+    ]
+    assert [posting.source_position for posting in result.postings or []] == [0, 2]
+    assert listing.call_count == 1
+    assert len(respx.calls) == 4
+
+
 def _job(posting_id: str, title: str = "Software Engineer, New Grad") -> dict[str, Any]:
     return {
         "id": posting_id,

@@ -1,7 +1,8 @@
 """Public ATS board readers. Fetching and filtering are separate steps."""
 
 import re
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Any, Literal
 from urllib.parse import quote
@@ -23,6 +24,7 @@ class BoardJob:
     employment_type: str
     listed_at: datetime | None
     country: str | None = None
+    source_position: int | None = None
 
 
 def board_url(
@@ -48,6 +50,7 @@ def fetch_board(
     platform: Platform,
     board_name: str,
     platform_config: OracleConfig | None = None,
+    listing_title_filter: Callable[[str | None], bool] | None = None,
 ) -> list[BoardJob]:
     if platform == "oracle":
         config = validate_oracle_config(platform_config)
@@ -68,13 +71,23 @@ def fetch_board(
             total_found = payload.get("totalFound")
             if not isinstance(total_found, int) or total_found < 0:
                 raise ValueError("SmartRecruiters response must contain totalFound")
-            for row in rows:
+            for source_position, row in enumerate(rows, start=offset):
                 posting_id = _required_text(row, "id")
+                title = row.get("name")
+                if listing_title_filter is not None and not listing_title_filter(
+                    title if isinstance(title, str) else None
+                ):
+                    continue
                 details_url = (
                     f"https://api.smartrecruiters.com/v1/companies/{board_name}/postings/"
                     f"{quote(posting_id, safe='-_.')}"
                 )
-                jobs.append(parse_smartrecruiters_detail(_json(client.get(details_url))))
+                jobs.append(
+                    replace(
+                        parse_smartrecruiters_detail(_json(client.get(details_url))),
+                        source_position=source_position,
+                    )
+                )
             if len(rows) < 100 or offset + len(rows) >= total_found:
                 return jobs
         raise ValueError("SmartRecruiters board exceeds pagination limit")

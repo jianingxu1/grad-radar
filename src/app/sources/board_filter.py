@@ -85,6 +85,16 @@ def matches_board_filter(job: BoardJob, config: dict[str, list[str]]) -> bool:
     )
 
 
+def title_might_match(title: str | None, config: dict[str, list[str]]) -> bool:
+    """Keep unknown titles for detail checks; only reject definite nonmatches."""
+    if not title:
+        return True
+    normalized = title.lower()
+    return any(term in normalized for term in config["role_terms"]) and not any(
+        term in normalized for term in config["exclude_terms"]
+    )
+
+
 def normalize_board_jobs(
     jobs: list[BoardJob], source_name: str, config: dict[str, list[str]], company_name: str
 ) -> list[ParsedJobPosting]:
@@ -101,7 +111,9 @@ def normalize_board_jobs(
                 application_key=normalize_apply_url(job.apply_url),
                 location=job.location,
                 listed_at=job.listed_at,
-                source_position=position,
+                source_position=job.source_position
+                if job.source_position is not None
+                else position,
             )
         )
     return result
