@@ -284,6 +284,12 @@ describe("App", () => {
     await waitFor(() => expect(window.location.search).toContain("sources=speedyapply"));
     expect(simplifyCheckbox).not.toBeChecked();
     fireEvent.click(within(sourceFilters).getByRole("button", { name: "Uncheck all" }));
+    expect(within(sourceFilters).getByRole("button", { name: "Uncheck all" })).toHaveClass(
+      "button-secondary",
+    );
+    expect(within(sourceFilters).getByRole("button", { name: "Check all" })).toHaveClass(
+      "button-secondary",
+    );
     expect(simplifyCheckbox).not.toBeChecked();
     expect(speedyCheckbox).not.toBeChecked();
     expect(window.location.search).toContain("sources=__none__");

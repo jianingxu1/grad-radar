@@ -53,11 +53,11 @@ export function FeedFilters({
               </span>
             </summary>
             <div className="absolute right-0 z-20 mt-1 max-h-80 w-[min(24rem,calc(100vw-2.5rem))] overflow-y-auto rounded border border-slate-200 bg-white p-4 shadow-lg">
-              <div className="mb-3 flex gap-4 text-sm">
-                <button type="button" className="p-0 text-blue-700" onClick={onUncheckAll}>
+              <div className="mb-3 flex gap-2 text-sm">
+                <button type="button" className="button-secondary" onClick={onUncheckAll}>
                   Uncheck all
                 </button>
-                <button type="button" className="p-0 text-blue-700" onClick={onCheckAll}>
+                <button type="button" className="button-secondary" onClick={onCheckAll}>
                   Check all
                 </button>
               </div>
