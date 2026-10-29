@@ -12,7 +12,7 @@ export function FeedHeader({
   user: User | null;
   googleLoadError: boolean;
   googleButtonRef: RefObject<HTMLDivElement | null>;
-  onNavigate: (path: "/" | "/faq" | "/settings/notifications") => void;
+  onNavigate: (path: "/" | "/faq" | "/sources" | "/settings/notifications") => void;
   onSignOut: () => void;
 }) {
   return (
@@ -35,6 +35,9 @@ export function FeedHeader({
         <p className="text-sm text-slate-500">U.S. entry-level software engineering jobs</p>
       </div>
       <div className="flex max-w-full flex-wrap items-center gap-3 sm:gap-4">
+        <button className="button-secondary" onClick={() => onNavigate("/sources")}>
+          Sources
+        </button>
         <button className="button-secondary" onClick={() => onNavigate("/faq")}>
           FAQ
         </button>

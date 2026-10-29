@@ -1,4 +1,23 @@
-export type SourceName = "simplify" | "speedyapply";
+export type SourceName = string;
+
+export type SourceFilter = {
+  role_terms: string[];
+  level_terms: string[];
+  exclude_terms: string[];
+};
+
+export type SourceDetail = {
+  id: string;
+  name: string;
+  url: string;
+  platform: "github" | "greenhouse" | "ashby" | "lever";
+  board_name: string | null;
+  company_name: string | null;
+  enabled: boolean;
+  filter_config: SourceFilter | Record<string, never>;
+  last_successful_sync_at: string | null;
+  last_sync_status: string | null;
+};
 
 export type Job = {
   id: string;
@@ -64,6 +83,12 @@ export async function fetchJobs(filters: JobFilters, signal?: AbortSignal): Prom
   return response.json() as Promise<JobPage>;
 }
 
+export async function fetchSources(signal?: AbortSignal): Promise<SourceDetail[]> {
+  const response = await fetch(`${apiBaseUrl}/v1/sources`, { signal });
+  if (!response.ok) throw new Error("Sources could not be loaded.");
+  return response.json() as Promise<SourceDetail[]>;
+}
+
 export type NotificationSettings = {
   status: "not_connected" | "pending" | "connected" | "disabled";
   expires_at: string | null;
@@ -73,7 +98,7 @@ async function authenticatedFetch(path: string, init?: RequestInit): Promise<Res
   const { supabase } = await import("./supabase");
   const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
   let token = data.session?.access_token;
-  if (!token) throw new Error("Please sign in to manage notifications.");
+  if (!token) throw new Error("Please sign in to manage this setting.");
   const request = () =>
     fetch(`${apiBaseUrl}${path}`, {
       ...init,
@@ -86,6 +111,40 @@ async function authenticatedFetch(path: string, init?: RequestInit): Promise<Res
     if (token) response = await request();
   }
   return response;
+}
+
+export async function fetchSourceAdminStatus(): Promise<boolean> {
+  const response = await authenticatedFetch("/v1/me/source-admin");
+  if (!response.ok) return false;
+  const body = (await response.json()) as { is_admin: boolean };
+  return body.is_admin;
+}
+
+export async function createSource(input: {
+  platform: "greenhouse" | "ashby" | "lever";
+  board_name: string;
+  company_name: string;
+}): Promise<SourceDetail> {
+  const response = await authenticatedFetch("/v1/sources", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) throw new Error(`Source could not be added (${response.status}).`);
+  return response.json() as Promise<SourceDetail>;
+}
+
+export async function updateSource(
+  id: string,
+  input: { enabled?: boolean; filter_config?: SourceFilter },
+): Promise<SourceDetail> {
+  const response = await authenticatedFetch(`/v1/sources/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) throw new Error(`Source could not be updated (${response.status}).`);
+  return response.json() as Promise<SourceDetail>;
 }
 
 export async function fetchNotificationSettings(

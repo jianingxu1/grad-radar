@@ -8,6 +8,7 @@ import { Pagination } from "./components/Pagination";
 import { defaultFilters, filtersFromSearch, filtersToSearch } from "./filterState";
 import { FaqPage } from "./pages/FaqPage";
 import { NotificationSettingsPage } from "./pages/NotificationSettingsPage";
+import { SourcesPage } from "./pages/SourcesPage";
 import { supabase } from "./supabase";
 
 function updateUrl(filters: JobFilters, replace = false): void {
@@ -137,7 +138,7 @@ export function App() {
   }, [path, user]);
 
   useEffect(() => {
-    if (path === "/faq" || path === "/settings/notifications") return;
+    if (path === "/faq" || path === "/settings/notifications" || path === "/sources") return;
     const controller = new AbortController();
     void fetchJobs(filters, controller.signal)
       .then((nextPage) => {
@@ -171,7 +172,7 @@ export function App() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  function navigate(nextPath: "/" | "/faq" | "/settings/notifications"): void {
+  function navigate(nextPath: "/" | "/faq" | "/sources" | "/settings/notifications"): void {
     window.history.pushState({}, "", nextPath === "/" ? `/${filtersToSearch(filters)}` : nextPath);
     setPath(nextPath);
     if (nextPath === "/") {
@@ -237,6 +238,9 @@ export function App() {
       <NotificationSettingsPage key={user?.id ?? "signed-out"} user={user} onNavigate={navigate} />
     );
   }
+  if (path === "/sources") {
+    return <SourcesPage key={user?.id ?? "signed-out"} user={user} onNavigate={navigate} />;
+  }
 
   return (
     <main className="flex min-h-screen flex-col bg-white text-slate-950">
@@ -253,7 +257,12 @@ export function App() {
             {authError}
           </p>
         )}
-        <FeedFilters filters={filters} onChange={changeFilters} onToggleSource={toggleSource} />
+        <FeedFilters
+          filters={filters}
+          onChange={changeFilters}
+          onToggleSource={toggleSource}
+          sources={page?.source_freshness.map((source) => source.name) ?? []}
+        />
         <JobFeed
           page={page}
           loading={loading}

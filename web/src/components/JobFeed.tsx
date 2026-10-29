@@ -1,5 +1,5 @@
 import type { JobFilters, JobPage } from "../api";
-import { formatDate, sourceLabels } from "./format";
+import { formatDate, sourceLabel } from "./format";
 
 export function JobFeed({
   page,
@@ -140,13 +140,13 @@ function SortableHeader({
 
 function Freshness({ sources }: { sources: JobPage["source_freshness"] }) {
   return (
-    <aside className="mb-3 text-xs text-slate-500" aria-label="Tracker freshness">
-      <span>Tracker freshness: </span>
+    <aside className="mb-3 text-xs text-slate-500" aria-label="Source freshness">
+      <span>Source freshness: </span>
       {sources.map((source, index) => (
         <span key={source.name}>
           {index > 0 && " · "}
           <a href={source.url} target="_blank" rel="noreferrer">
-            {sourceLabels[source.name]}
+            {sourceLabel(source.name)}
           </a>
           {": "}
           {source.last_successful_sync_at
@@ -186,7 +186,7 @@ function JobRow({ job }: { job: JobPage["items"][number] }) {
       </td>
       <td
         className="break-words px-3 py-3 text-slate-500"
-        title={job.sources.map((source) => sourceLabels[source.name]).join(", ")}
+        title={job.sources.map((source) => sourceLabel(source.name)).join(", ")}
       >
         {job.sources.map((source, index) => (
           <span key={source.name}>
@@ -197,7 +197,7 @@ function JobRow({ job }: { job: JobPage["items"][number] }) {
               target="_blank"
               rel="noreferrer"
             >
-              {sourceLabels[source.name]}
+              {sourceLabel(source.name)}
             </a>
           </span>
         ))}

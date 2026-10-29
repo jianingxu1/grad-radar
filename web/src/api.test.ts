@@ -38,4 +38,10 @@ describe("job feed query state", () => {
   it("ignores an invalid listing-hours value in a shared URL", () => {
     expect(filtersFromSearch("?listed_within_hours=two-days").listedWithinHours).toBe("");
   });
+
+  it("keeps a company board source in a shareable feed URL", () => {
+    const filters = filtersFromSearch("?sources=lever%3Apalantir");
+    expect(filters.sources).toEqual(["lever:palantir"]);
+    expect(filtersToSearch(filters)).toContain("sources=lever%3Apalantir");
+  });
 });
