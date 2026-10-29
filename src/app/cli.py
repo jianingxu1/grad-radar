@@ -22,18 +22,22 @@ def ingest_and_deliver(
     github_token: str | None,
     telegram_bot_token: str | None,
 ) -> list[IngestionSummary]:
+    logger.info("Preparing ingestion worker")
     with session_factory.begin() as session:
         bootstrap_seed_boards(session)
+    logger.info("Running GitHub source ingestion")
     summaries = ingest_all(session_factory, github_token)
+    logger.info("Running company board ingestion")
     board_results = ingest_all_boards(session_factory)
     summaries.extend(IngestionSummary(source=name, status=status) for name, status in board_results)
+    logger.info("Delivering pending Telegram notifications")
     with (
         session_factory.begin() as session,
         TelegramClient(telegram_bot_token) as telegram,
     ):
         delivered = deliver_pending(session, telegram, datetime.now(UTC))
     logger.info(
-        "worker.ingest.completed sources=%s notifications_delivered=%s",
+        "Ingestion worker finished: %s sources processed, %s Telegram notifications delivered",
         len(summaries),
         delivered,
     )

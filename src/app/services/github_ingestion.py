@@ -52,7 +52,7 @@ def ingest_all(
             session.scalars(select(Source.name).where(Source.enabled, Source.platform == "github"))
         )
     definitions = [source for source in SOURCES if source.name in enabled_names]
-    logger.info("ingestion.batch.started source_count=%s", len(definitions))
+    logger.info("Starting GitHub ingestion for %s sources", len(definitions))
     headers = {"Authorization": f"Bearer {github_token}"} if github_token else {}
     cycle_at = datetime.now(UTC)
     with httpx.Client(headers=headers, timeout=20) as client:
@@ -63,8 +63,8 @@ def ingest_all(
     new_ids = [job_id for summary in summaries for job_id in summary.new_job_ids]
     notifications_enqueued = sum(summary.notifications_enqueued for summary in summaries)
     logger.info(
-        "ingestion.batch.completed duration_ms=%s successful=%s unchanged=%s failed=%s "
-        "new_jobs=%s notifications_enqueued=%s",
+        "Finished GitHub ingestion in %s ms: %s successful, %s unchanged, %s failed; "
+        "%s new jobs, %s notifications queued",
         _duration_ms(started_at),
         sum(summary.status == "success" for summary in summaries),
         sum(summary.status == "unchanged" for summary in summaries),
@@ -86,7 +86,7 @@ def ingest_source(
     if cycle_at is None:
         cycle_at = datetime.now(UTC)
     sha: str | None = None
-    logger.info("ingestion.source.started source=%s", definition.name)
+    logger.info("Checking GitHub revision for source %s", definition.name)
     try:
         commit = _get(
             client,
@@ -123,6 +123,7 @@ def ingest_source(
                 duration_ms,
             )
             return IngestionSummary(definition.name, "unchanged", sha, duration_ms=duration_ms)
+        logger.info("Fetching and parsing jobs for source %s at revision %s", definition.name, sha)
         raw = _get(
             client,
             f"https://raw.githubusercontent.com/{definition.repository}/{sha}/{definition.file_path}",
@@ -142,6 +143,11 @@ def ingest_source(
         )
         with session_factory.begin() as session:
             source = session.query(Source).filter_by(name=definition.name).one()
+            logger.info(
+                "Saving %s matching jobs for source %s",
+                len(parsed.postings),
+                definition.name,
+            )
             _, new_job_ids = persist_postings_with_new_ids(session, parsed.postings, checked_at)
             notifications_enqueued = enqueue_new_jobs(session, new_job_ids, cycle_at)
             source.last_processed_revision_sha = sha
