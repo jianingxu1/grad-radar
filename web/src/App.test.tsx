@@ -274,6 +274,9 @@ describe("App", () => {
     await screen.findByText("Platform Engineer, New Grad");
     fireEvent.click(screen.getByText("All sources (2)"));
     const sourceFilters = screen.getByRole("group", { name: "Source" });
+    expect(within(sourceFilters).getByText("All sources (2)").closest("details")).toHaveClass(
+      "max-w-96",
+    );
     expect(within(sourceFilters).getByText("GitHub sources")).toBeVisible();
     expect(within(sourceFilters).getByText("Company job boards")).toBeVisible();
     const simplifyCheckbox = within(sourceFilters).getByRole("checkbox", { name: "Simplify" });

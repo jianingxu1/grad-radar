@@ -41,7 +41,7 @@ export function FeedFilters({
           </select>
         </Field>
         <Field grouped label="Source">
-          <details className="group relative">
+          <details className="group relative w-full max-w-96">
             <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded border border-slate-300 px-3 text-sm text-slate-800 marker:hidden">
               <span>
                 {filters.sources.length === 0
