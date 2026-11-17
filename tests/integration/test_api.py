@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, time, timedelta
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import event, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -11,6 +12,23 @@ from app.models.parsed_job_posting import ParsedJobPosting
 from app.repositories.job_postings import persist_posting
 from app.sources.bootstrap import bootstrap_sources
 from app.sources.definitions import SourceName
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"offset": 10001},
+        {"listed_within_hours": 87601},
+        {"posted_within_hours": 87601},
+        {"q": "a" * 201},
+        {"sources": ["simplify"] * 101},
+    ],
+)
+def test_job_search_rejects_requests_outside_query_limits(
+    params: dict[str, int | str | list[str]],
+) -> None:
+    with TestClient(create_app(sessionmaker[Session]())) as client:
+        assert client.get("/v1/jobs", params=params).status_code == 422
 
 
 def _posting(

@@ -26,6 +26,10 @@ signing keys. If the project still issues HS256 tokens, set
 `SUPABASE_ALLOW_LEGACY_HS256=true` and provide `SUPABASE_PUBLISHABLE_KEY` on
 the API until the project migrates to asymmetric signing.
 
+`GET /v1/jobs` accepts offsets through 10,000 and time filters through
+87,600 hours. Each API process handles up to four concurrent job searches
+and applies a three-second timeout per PostgreSQL statement.
+
 ## Run locally
 
 ```bash

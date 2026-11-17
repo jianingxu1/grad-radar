@@ -3,6 +3,7 @@ from collections import defaultdict
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from secrets import compare_digest
+from threading import BoundedSemaphore
 from typing import Annotated, Literal, cast
 from uuid import UUID
 
@@ -43,6 +44,15 @@ logger = logging.getLogger(__name__)
 
 def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRouter:
     router = APIRouter()
+    job_search_slots = BoundedSemaphore(4)
+
+    def limit_job_search_concurrency() -> Iterator[None]:
+        if not job_search_slots.acquire(blocking=False):
+            raise HTTPException(status_code=429, detail="too many concurrent job searches")
+        try:
+            yield
+        finally:
+            job_search_slots.release()
 
     def get_session() -> Iterator[Session]:
         factory = get_session_factory() if session_factory is None else session_factory
@@ -149,22 +159,27 @@ def create_router(session_factory: sessionmaker[Session] | None = None) -> APIRo
         session.commit()
         return detail
 
-    @router.get("/v1/jobs", response_model=JobPageResponse)
+    @router.get(
+        "/v1/jobs",
+        response_model=JobPageResponse,
+        dependencies=[Depends(limit_job_search_concurrency)],
+    )
     def list_jobs(
         *,
-        q: str | None = None,
-        location: str | None = None,
+        q: Annotated[str | None, Query(max_length=200)] = None,
+        location: Annotated[str | None, Query(max_length=200)] = None,
         remote: bool | None = None,
-        company: str | None = None,
-        posted_within_hours: Annotated[int | None, Query(ge=1)] = None,
-        listed_within_hours: Annotated[int | None, Query(ge=1)] = None,
-        sources: Annotated[list[str] | None, Query()] = None,
+        company: Annotated[str | None, Query(max_length=200)] = None,
+        posted_within_hours: Annotated[int | None, Query(ge=1, le=87600)] = None,
+        listed_within_hours: Annotated[int | None, Query(ge=1, le=87600)] = None,
+        sources: Annotated[list[str] | None, Query(max_length=100)] = None,
         sort_by: Literal["company_name", "listed_at"] = "listed_at",
         sort_direction: Literal["asc", "desc"] = "desc",
-        offset: Annotated[int, Query(ge=0)] = 0,
+        offset: Annotated[int, Query(ge=0, le=10000)] = 0,
         limit: Annotated[int, Query(ge=1, le=100)] = 50,
         session: Annotated[Session, Depends(get_session)],
     ) -> JobPageResponse:
+        session.execute(text("SET LOCAL statement_timeout = '3s'"))
         source_link = (
             select(JobPostingSource.job_posting_id)
             .join(Source, JobPostingSource.source_id == Source.id)
