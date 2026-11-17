@@ -21,6 +21,11 @@ company identifier (for example, `oracle:uber`).
 `.github/workflows/ingest.yml` is a manual backup for running ingestion from
 GitHub Actions. It does not set or run the production schedule.
 
+The API verifies Supabase access tokens against the project's asymmetric
+signing keys. If the project still issues HS256 tokens, set
+`SUPABASE_ALLOW_LEGACY_HS256=true` and provide `SUPABASE_PUBLISHABLE_KEY` on
+the API until the project migrates to asymmetric signing.
+
 ## Run locally
 
 ```bash

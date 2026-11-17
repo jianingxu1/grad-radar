@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     supabase_url: str | None = None
     supabase_publishable_key: str | None = None
     supabase_jwt_audience: str = "authenticated"
+    supabase_allow_legacy_hs256: bool = False
     source_admin_user_ids: str = ""
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     frontend_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
