@@ -19,6 +19,9 @@ dependencies = [
 requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
+[tool.uv]
+constraint-dependencies = ["opentelemetry-api>=1.45.2", "soupsieve>=4.0.0"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/app"]
 
