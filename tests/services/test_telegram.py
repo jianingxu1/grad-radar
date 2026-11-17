@@ -1,12 +1,15 @@
 import json
+import logging
 
 import httpx
+import pytest
 import respx
 
 from app.services.telegram import TelegramClient, TelegramDelivery
 
 
-def test_send_message_uses_the_configured_destination() -> None:
+def test_send_message_uses_the_configured_destination(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, logger="httpx")
     with respx.mock:
         route = respx.post("https://api.telegram.org/bottest-token/sendMessage").mock(
             return_value=httpx.Response(200, json={"ok": True, "result": {"message_id": 42}})
@@ -17,6 +20,7 @@ def test_send_message_uses_the_configured_destination() -> None:
             delivery = client.send_message("A new job was found")
 
         assert delivery == TelegramDelivery(success=True, message_id=42)
+        assert "test-token" not in caplog.text
         assert json.loads(route.calls[0].request.content) == {
             "chat_id": "-100123",
             "text": "A new job was found",
@@ -62,16 +66,14 @@ def test_send_message_returns_telegram_errors() -> None:
 def test_send_message_reports_a_network_failure() -> None:
     with respx.mock:
         respx.post("https://api.telegram.org/bottest-token/sendMessage").mock(
-            side_effect=httpx.ConnectError("connection failed")
+            side_effect=httpx.ConnectError("connection failed for bot test-token")
         )
 
         with httpx.Client() as http_client:
             telegram = TelegramClient("test-token", "-100123", client=http_client)
             delivery = telegram.send_message("Hello")
 
-    assert delivery == TelegramDelivery(
-        success=False, error="Telegram request failed: connection failed"
-    )
+    assert delivery == TelegramDelivery(success=False, error="Telegram request failed")
 
 
 def test_send_message_reports_an_invalid_telegram_response() -> None:

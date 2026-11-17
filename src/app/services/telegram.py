@@ -1,8 +1,16 @@
 """Telegram message delivery for backend jobs and workers."""
 
+import logging
 from dataclasses import dataclass
 
 import httpx
+
+
+def _exclude_telegram_requests(record: logging.LogRecord) -> bool:
+    return "https://api.telegram.org/bot" not in record.getMessage()
+
+
+logging.getLogger("httpx").addFilter(_exclude_telegram_requests)
 
 
 @dataclass(frozen=True)
@@ -71,8 +79,8 @@ class TelegramClient:
                     "link_preview_options": {"is_disabled": True},
                 },
             )
-        except httpx.HTTPError as error:
-            return TelegramDelivery(False, error=f"Telegram request failed: {error}")
+        except httpx.HTTPError:
+            return TelegramDelivery(False, error="Telegram request failed")
 
         try:
             payload = response.json()
@@ -95,7 +103,7 @@ class TelegramClient:
             retry_after = parameters.get("retry_after") if isinstance(parameters, dict) else None
             return TelegramDelivery(
                 False,
-                error=description,
+                error=description.replace(self._bot_token, "[redacted]"),
                 retry_after=retry_after if type(retry_after) is int else None,
                 status_code=response.status_code,
             )
