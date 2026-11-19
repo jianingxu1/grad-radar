@@ -46,3 +46,5 @@ I built GradRadar so I could check one place for the latest, deduplicated new gr
 - [ ] Let admins add company board sources from the app.
 - [ ] Add an in-app feedback button so users can suggest improvements.
 - [ ] Add dark mode to the website.
+- [ ] Use an LLM as a decision model to classify jobs by field (e.g. machine learning, software engineering, backend, embedded), seniority, U.S. citizenship or security clearance requirements, visa sponsorship, and other criteria for more accurate filtering.
+- [ ] Let users customize Telegram job alerts with their preferred filters.
