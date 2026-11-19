@@ -1,9 +1,11 @@
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import cast
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 from app.database.models import JobPosting
-from app.services.notifications import TELEGRAM_MESSAGE_LIMIT, _message_batches
+from app.services.notifications import TELEGRAM_MESSAGE_LIMIT, _message_batches, deliver_pending
 
 
 def test_message_batches_truncate_an_oversized_single_job() -> None:
@@ -67,3 +69,14 @@ def test_message_batches_include_count_and_separator() -> None:
     assert message_jobs == jobs
     assert message.startswith("🔔 2 new jobs found\n\n<b>RTX</b>")
     assert "\n\n──────────────\n\n<b>Headlands Tech Holdings</b>" in message
+
+
+def test_delivery_skips_before_reading_queue_when_worker_lock_is_held() -> None:
+    session = MagicMock()
+    session.scalar.return_value = False
+    telegram = MagicMock()
+
+    assert deliver_pending(session, telegram, datetime.now(UTC)) == 0
+
+    session.execute.assert_not_called()
+    telegram.send_message.assert_not_called()
