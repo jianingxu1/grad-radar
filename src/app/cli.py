@@ -17,10 +17,9 @@ from app.sources.seed_boards import bootstrap_seed_boards
 logger = logging.getLogger(__name__)
 
 
-def ingest_and_deliver(
+def run_ingestion(
     session_factory: sessionmaker[Session],
     github_token: str | None,
-    telegram_bot_token: str | None,
 ) -> list[IngestionSummary]:
     logger.info("Preparing ingestion worker")
     with session_factory.begin() as session:
@@ -30,37 +29,47 @@ def ingest_and_deliver(
     logger.info("Running company board ingestion")
     board_results = ingest_all_boards(session_factory)
     summaries.extend(IngestionSummary(source=name, status=status) for name, status in board_results)
+    logger.info("Ingestion worker finished: %s sources processed", len(summaries))
+    return summaries
+
+
+def run_notification_delivery(
+    session_factory: sessionmaker[Session], telegram_bot_token: str
+) -> int:
     logger.info("Delivering pending Telegram notifications")
     with (
         session_factory.begin() as session,
         TelegramClient(telegram_bot_token) as telegram,
     ):
         delivered = deliver_pending(session, telegram, datetime.now(UTC))
-    logger.info(
-        "Ingestion worker finished: %s sources processed, %s Telegram notifications delivered",
-        len(summaries),
-        delivered,
-    )
-    return summaries
+    logger.info("Telegram delivery worker finished: %s notifications delivered", delivered)
+    return delivered
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("bootstrap-sources", "ingest"))
+    parser.add_argument("command", choices=("bootstrap-sources", "ingest", "deliver-notifications"))
     command = parser.parse_args().command
     settings = get_settings()
     configure_logging(settings.log_level)
+    if command == "deliver-notifications" and not settings.telegram_bot_token:
+        parser.error("TELEGRAM_BOT_TOKEN is required for deliver-notifications")
     session_factory = create_session_factory(settings)
-    if command == "ingest":
-        summaries = ingest_and_deliver(
-            session_factory, settings.github_token, settings.telegram_bot_token
-        )
-        if all(summary.status == "failed" for summary in summaries):
-            raise SystemExit(1)
-        return
-    with transaction(session_factory) as session:
-        created = bootstrap_sources(session) + bootstrap_seed_boards(session)
-    print(f"bootstrapped sources (created={created})")
+    try:
+        if command == "ingest":
+            summaries = run_ingestion(session_factory, settings.github_token)
+            if all(summary.status == "failed" for summary in summaries):
+                raise SystemExit(1)
+            return
+        if command == "deliver-notifications":
+            assert settings.telegram_bot_token is not None
+            run_notification_delivery(session_factory, settings.telegram_bot_token)
+            return
+        with transaction(session_factory) as session:
+            created = bootstrap_sources(session) + bootstrap_seed_boards(session)
+        print(f"bootstrapped sources (created={created})")
+    finally:
+        session_factory.kw["bind"].dispose()
 
 
 if __name__ == "__main__":

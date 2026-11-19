@@ -10,7 +10,7 @@ from typing import Literal
 from uuid import UUID
 
 from bs4 import BeautifulSoup
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -26,6 +26,8 @@ from app.services.telegram import TelegramClient, TelegramDelivery
 logger = logging.getLogger(__name__)
 
 TOKEN_TTL = timedelta(minutes=10)
+# Stable, application-specific bigint shared by every delivery entry point.
+DELIVERY_LOCK_KEY = 0x4752414452414441
 TELEGRAM_MESSAGE_LIMIT = 4096
 _MAX_DISPLAY_FIELD_LENGTH = 512
 _TRACKER_HTML_TAG = re.compile(r"</?(?:a|b|em|i|span|strong)\b", re.IGNORECASE)
@@ -195,6 +197,13 @@ def enqueue_new_jobs(session: Session, job_ids: list[UUID], cycle_at: datetime) 
 
 
 def deliver_pending(session: Session, telegram: TelegramClient, now: datetime) -> int:
+    """Deliver one pass, holding the exclusive lock until the caller commits/rolls back."""
+    acquired = session.scalar(
+        text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": DELIVERY_LOCK_KEY}
+    )
+    if not acquired:
+        logger.info("notifications.delivery.skipped reason=worker_already_running")
+        return 0
     rows = (
         session.execute(
             select(NotificationOutbox, TelegramConnection, JobPosting)

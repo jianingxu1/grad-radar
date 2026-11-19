@@ -25,6 +25,8 @@
   holds the frontend. Document every new top-level project folder here.
 - Railway runs `python -m app.cli ingest` every 15 minutes in production. The
   GitHub Actions ingestion workflow is manual, not the production schedule.
+  A separate Railway cron runs `python -m app.cli deliver-notifications` every
+  five minutes; ingestion only queues notifications.
 
 ## Development rules
 
