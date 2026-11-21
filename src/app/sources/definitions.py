@@ -15,27 +15,26 @@ class SourceDefinition:
     file_path: str
     parser: SourceName
     priority: int
-
-    @property
-    def url(self) -> str:
-        return f"https://github.com/{self.repository}"
+    url: str
 
 
 SOURCES = (
     SourceDefinition(
-        SourceName.SIMPLIFY,
-        "SimplifyJobs/New-Grad-Positions",
-        "dev",
-        "README.md",
-        SourceName.SIMPLIFY,
-        1,
+        name=SourceName.SIMPLIFY,
+        repository="SimplifyJobs/New-Grad-Positions",
+        branch="dev",
+        file_path="README.md",
+        parser=SourceName.SIMPLIFY,
+        priority=1,
+        url="https://github.com/SimplifyJobs/New-Grad-Positions#-software-engineering-new-grad-roles",
     ),
     SourceDefinition(
-        SourceName.SPEEDYAPPLY,
-        "speedyapply/2027-SWE-College-Jobs",
-        "main",
-        "NEW_GRAD_USA.md",
-        SourceName.SPEEDYAPPLY,
-        2,
+        name=SourceName.SPEEDYAPPLY,
+        repository="speedyapply/2027-SWE-College-Jobs",
+        branch="main",
+        file_path="NEW_GRAD_USA.md",
+        parser=SourceName.SPEEDYAPPLY,
+        priority=2,
+        url="https://github.com/speedyapply/2027-SWE-College-Jobs/blob/main/NEW_GRAD_USA.md",
     ),
 )

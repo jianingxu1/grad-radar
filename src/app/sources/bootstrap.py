@@ -6,10 +6,16 @@ from app.sources.definitions import SOURCES
 
 
 def bootstrap_sources(session: Session) -> int:
-    existing = set(session.scalars(select(Source.name)).all())
+    configured_names = {definition.name for definition in SOURCES}
+    existing = {
+        source.name: source
+        for source in session.scalars(select(Source).where(Source.name.in_(configured_names)))
+    }
     for definition in SOURCES:
-        if definition.name not in existing:
+        if definition.name in existing:
+            existing[definition.name].url = definition.url
+        else:
             session.add(
                 Source(name=definition.name, url=definition.url, priority=definition.priority)
             )
-    return len(set(definition.name for definition in SOURCES) - existing)
+    return len(configured_names - existing.keys())

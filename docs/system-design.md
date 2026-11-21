@@ -23,7 +23,7 @@ New jobs from a board's first successful sync appear in the feed without alerts.
 - `POST /v1/sources` and `PATCH /v1/sources/{id}` create or update company boards for admins. New and re-enabled boards are verified against their public API. GitHub sources cannot be edited through these endpoints.
 - `GET /v1/me/source-admin` tells an authenticated user whether the server's `SOURCE_ADMIN_USER_IDS` allowlist grants source management.
 
-The public `/sources` page shows all sources and their status. Admins can add Greenhouse, Ashby, Lever, Oracle Recruiting, or SmartRecruiters boards and edit their filters. Oracle configuration requires an Oracle Cloud tenant hostname and a site number such as `CX_1`. The feed loads available source choices from the API and shows each job's source-provided links.
+The public `/sources` page shows all sources and their status. Admins can add Greenhouse, Ashby, Lever, Oracle Recruiting, or SmartRecruiters boards and edit their filters. Oracle configuration requires an Oracle Cloud tenant hostname and a site number such as `CX_1`. The feed loads available source choices from the API. Job titles link to applications; source labels and freshness entries link to the source's URL from the database. GitHub source URLs point to the tracked list or section and are refreshed during bootstrap.
 
 ## Release order
 

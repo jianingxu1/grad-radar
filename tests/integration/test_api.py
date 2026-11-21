@@ -117,7 +117,7 @@ def test_jobs_api_filters_paginates_and_returns_listing_attributes(
         "sources": [
             {
                 "name": "simplify",
-                "url": "https://github.com/SimplifyJobs/New-Grad-Positions",
+                "url": "https://github.com/SimplifyJobs/New-Grad-Positions#-software-engineering-new-grad-roles",
                 "apply_url": "https://jobs.example.com/1",
             }
         ],
@@ -125,12 +125,12 @@ def test_jobs_api_filters_paginates_and_returns_listing_attributes(
     assert body["source_freshness"] == [
         {
             "name": "simplify",
-            "url": "https://github.com/SimplifyJobs/New-Grad-Positions",
+            "url": "https://github.com/SimplifyJobs/New-Grad-Positions#-software-engineering-new-grad-roles",
             "last_successful_sync_at": now.isoformat().replace("+00:00", "Z"),
         },
         {
             "name": "speedyapply",
-            "url": "https://github.com/speedyapply/2027-SWE-College-Jobs",
+            "url": "https://github.com/speedyapply/2027-SWE-College-Jobs/blob/main/NEW_GRAD_USA.md",
             "last_successful_sync_at": None,
         },
     ]
@@ -214,7 +214,7 @@ def test_jobs_api_filters_discovered_jobs_by_source(
     assert client.get("/v1/jobs?sources=simplify").json()["items"][0]["sources"] == [
         {
             "name": "simplify",
-            "url": "https://github.com/SimplifyJobs/New-Grad-Positions",
+            "url": "https://github.com/SimplifyJobs/New-Grad-Positions#-software-engineering-new-grad-roles",
             "apply_url": "https://jobs.example.com/simplify",
         }
     ]

@@ -32,7 +32,12 @@ const response = {
       location: "Boston, MA",
       listed_at: "2026-09-14T10:00:00Z",
       first_seen_at: "2026-09-14T11:00:00Z",
-      sources: [{ name: "simplify", url: "https://github.com/SimplifyJobs/New-Grad-Positions" }],
+      sources: [
+        {
+          name: "simplify",
+          url: "https://github.com/SimplifyJobs/New-Grad-Positions#-software-engineering-new-grad-roles",
+        },
+      ],
     },
   ],
   offset: 0,
@@ -41,12 +46,12 @@ const response = {
   source_freshness: [
     {
       name: "simplify",
-      url: "https://github.com/SimplifyJobs/New-Grad-Positions",
+      url: "https://github.com/SimplifyJobs/New-Grad-Positions#-software-engineering-new-grad-roles",
       last_successful_sync_at: "2026-09-14T11:00:00Z",
     },
     {
       name: "speedyapply",
-      url: "https://github.com/speedyapply/2027-SWE-College-Jobs",
+      url: "https://github.com/speedyapply/2027-SWE-College-Jobs/blob/main/NEW_GRAD_USA.md",
       last_successful_sync_at: null,
     },
   ],
@@ -77,9 +82,17 @@ describe("App", () => {
     expect(githubToggle.closest("summary")).not.toHaveClass("uppercase");
     expect(freshness).toHaveTextContent(/Simplify: Sep 14, 2026/);
     expect(freshness).toHaveTextContent(/SpeedyApply: not checked yet/);
+    for (const source of response.source_freshness) {
+      const label = source.name === "simplify" ? "Simplify" : "SpeedyApply";
+      expect(within(freshness).getByRole("link", { name: label })).toHaveAttribute(
+        "href",
+        source.url,
+      );
+    }
     fireEvent.click(githubToggle);
     expect(githubSection).not.toHaveAttribute("open");
     const applicationLink = screen.getByRole("link", { name: /Open application link for Figma/ });
+    expect(applicationLink).toHaveAttribute("href", response.items[0].apply_url);
     expect(applicationLink).toHaveAttribute("target", "_blank");
     expect(applicationLink).toHaveAttribute("rel", "noreferrer");
     expect(screen.getByLabelText("Sign in with Google")).toBeVisible();
@@ -90,7 +103,7 @@ describe("App", () => {
     ).toBeVisible();
   });
 
-  it("links each source to its own application URL", async () => {
+  it("links each source to its source URL while the role links to the application", async () => {
     const provenance = {
       ...response,
       items: [
@@ -99,7 +112,7 @@ describe("App", () => {
           sources: [
             {
               name: "simplify",
-              url: "https://github.com/SimplifyJobs/New-Grad-Positions",
+              url: "https://github.com/SimplifyJobs/New-Grad-Positions#-software-engineering-new-grad-roles",
               apply_url: "https://tracker.example/apply",
             },
             {
@@ -117,11 +130,11 @@ describe("App", () => {
     const listings = await screen.findByRole("region", { name: /Job listings/ });
     expect(within(listings).getByRole("link", { name: "Simplify" })).toHaveAttribute(
       "href",
-      "https://tracker.example/apply",
+      "https://github.com/SimplifyJobs/New-Grad-Positions#-software-engineering-new-grad-roles",
     );
     expect(within(listings).getByRole("link", { name: "Figma (Greenhouse)" })).toHaveAttribute(
       "href",
-      "https://job-boards.greenhouse.io/figma/jobs/123",
+      "https://job-boards.greenhouse.io/figma",
     );
   });
 
